@@ -1,0 +1,131 @@
+﻿@page "/teacher{n}/programs"
+
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@layout Components.Layout.LeaveLayout
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+
+
+<div class="content">
+	<span>Разделы</span>
+	<div class="sections">
+		
+		<button class="btn btn-success" @onclick="NewSectionBlock">Новый раздел</button>
+		@*
+		<button class="btn btn-primary" @onclick="@(e => {
+		isSectionsCollapsed = !isSectionsCollapsed;
+		collapseSectionsButtonName = isSectionsCollapsed ? "Развернуть" : "Свернуть";
+		})">
+		@collapseSectionsButtonName
+		</button>
+		*@
+		<div class="m-2">
+			@foreach (var sec in sections)
+			{
+				
+				<div class="section flex-row border border-2 rounded-2 p-2 m-2 border-dark">
+					<div style="display: flex;" class="align-items-center">
+						<span>Название раздела</span>
+						<input placeholder="Название раздела" @bind=sec.Name />
+						<span>Количество часов, всего</span>
+						<input placeholder="Количество часов, всего" @bind=sec.Hours />
+						<span style="display: flex; flex: 1 1 auto"></span>
+						<button class="btn btn-danger" @onclick="@(e => RemoveSection(sec))">Удалить</button>
+						<button class="btn btn-outline-secondary m-2 " @onclick="@(e => CollapseSingleSection(sec))" value="@IsSingleSectionCollapsed(sec) ? hello : hello2">
+							@GetButtonCollapseName(sec)
+						</button>
+					</div>
+					
+					<div class="themes" hidden="@IsSingleSectionCollapsed(sec)">
+						<span>Темы раздела @sec.Name</span>
+						<div>
+							<table class="table table-striped ">
+								<thead>
+									<tr>
+										<th scope="col">Название</th>
+										<th scope="col">Количество часов</th>
+										<th scope="col">Описание</th>
+										<th scope="col"></th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach (var theme in sec.SectionThemes)
+									{
+										<tr class="theme-row">
+											<td><input @bind=theme.Name /></td>
+											<td><input @bind=theme.Hours /></td>
+											<td><input @bind=theme.Description /></td>
+											<td><button class="btn btn-danger" @onclick="@(e => sec.SectionThemes.Remove(theme))">Удалить</button></td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+						<button class="btn btn-success" @onclick="@(e => NewThemeRow(sec))">Новая тема</button>
+					</div>
+				</div>
+			}
+		</div>
+		</div>
+		
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	List<ProgramSection> sections = new List<ProgramSection>();
+	List<bool> sectionsCollapseStates = new List<bool>();
+
+
+	protected override async Task OnInitializedAsync()
+	{
+		GetDefaultSections();
+	}
+
+	private void GetDefaultSections()
+	{
+		sections = new List<ProgramSection>();
+		//sections.Add(new ProgramSection());
+		//sections[0].SectionThemes.Add(new SectionTheme());
+		NewSectionBlock();
+		//sectionsCollapseStates.Add(true);
+	}
+	private void NewThemeRow(ProgramSection section)
+	{
+		section.SectionThemes.Add(new SectionTheme());
+	}
+	private void NewSectionBlock()
+	{
+		sections.Add(new ProgramSection());
+		NewThemeRow(sections[sections.Count - 1]);
+		sectionsCollapseStates.Add(true);
+	}
+
+	private void CollapseSingleSection(ProgramSection section)
+	{
+		int index = sections.IndexOf(section);
+		sectionsCollapseStates[index] = !sectionsCollapseStates[index];
+	}
+
+	private bool IsSingleSectionCollapsed(ProgramSection section)
+	{
+		int index = sections.IndexOf(section);
+		return sectionsCollapseStates[index];
+	}
+
+	private string GetButtonCollapseName(ProgramSection section)
+	{
+		return IsSingleSectionCollapsed(section) ? "▼" : "▲";
+	}
+
+	private void RemoveSection(ProgramSection section)
+	{
+		int index = sections.IndexOf(section);
+		sections.Remove(section);
+		sectionsCollapseStates.RemoveAt(index);
+	}
+}
