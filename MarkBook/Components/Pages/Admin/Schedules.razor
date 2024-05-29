@@ -1,0 +1,217 @@
+﻿@page "/admin/schedules" 
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.AdminLayout
+@rendermode InteractiveServer
+
+<div>
+	@if (!loading)
+	{
+		<div class="container h-50 py-10">
+			<label for="grade">Класс</label>
+			<select name="grade" @bind="ggrade">
+				@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.DistinctBy(x => x.Grade.Name).OrderBy(x => x.Grade.Name))
+				{
+					<option value="@teacherSubjectGrade.Grade.Id">@teacherSubjectGrade.Grade.Name@teacherSubjectGrade.Grade.Subname</option>
+				}
+			</select>
+		</div>
+		<div class="container h-50 py-10">
+			<div style="height:500px; overflow-y: scroll;">
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">День недели</th>
+						<th scope="col">Порядок урока</th>
+						@foreach (Data.Database.Model.Grade grade in grades.Where(x=>x.Id == ggrade))
+						{
+							<th scope="col">@grade.Name@grade.Subname</th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (string a in weekdays)
+					{
+						@foreach (Data.Database.Model.Schedule schedule in schedules.Where(x => x.Weekday == a && x.TeacherSubjectGrade.Grade.Id == ggrade)) 
+						{
+							count++;
+						}
+						@if (count > 1)
+						{
+							count++;
+							<tr>
+								<th rowspan="@count" align="center">@a</th>
+							</tr>
+							count = 0;
+							@foreach (Data.Database.Model.Schedule schedule in schedules.Where(x => x.Weekday == a &&
+												x.TeacherSubjectGrade.Grade.Id == ggrade).OrderBy(x => x.Number))
+							{
+								var sID = schedule.Id;
+								<tr>
+									<td>@schedule.Number</td>
+									<td>
+										@schedule.TeacherSubjectGrade.Subject.Name (Учитель: @schedule.TeacherSubjectGrade.Teacher.last_name
+										@schedule.TeacherSubjectGrade.Teacher.first_name.Substring(0, 1).@schedule.TeacherSubjectGrade.Teacher.patronymic.Substring(0, 1).)
+									</td>
+									<td><button class="btn btn-danger" @onclick="@(() => {DeleteSced(sID);})">Удалить</button></td>
+								</tr>
+							}
+						}
+						else
+						{
+							<tr>
+								<th align="center">@a</th>
+								@foreach (Data.Database.Model.Schedule schedule in schedules.Where(x => x.Weekday == a &&
+													x.TeacherSubjectGrade.Grade.Id == ggrade).OrderBy(x => x.Number))
+								{
+									var sID = schedule.Id;
+									<td>@schedule.Number</td>
+									<td>
+											@schedule.TeacherSubjectGrade.Subject.Name (Учитель: @schedule.TeacherSubjectGrade.Teacher.last_name
+											@schedule.TeacherSubjectGrade.Teacher.first_name.Substring(0, 1).@schedule.TeacherSubjectGrade.Teacher.patronymic.Substring(0, 1).)
+									</td>
+									<td><button class="btn btn-danger" @onclick="@(() => {DeleteSced(sID);})">Удалить</button></td>
+								}
+							</tr>
+							count = 0;
+						}
+					}
+					
+				</tbody>
+			</table>
+			</div>
+		</div>
+		<div class="container h-50 py-10">
+			<h2>Добавить урок в расписание</h2>
+			<label for="weekday">День недели</label>
+			<select name="weekday" @bind="weekday">
+				@foreach (string a in weekdays)
+				{
+					<option value="@a">@a</option>
+				}
+			</select>
+			<label for="subject">Предмет</label>
+			<select name="subject" @bind="ssubject">
+				@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.DistinctBy(x => x.Subject.Name))
+				{
+					<option value="@teacherSubjectGrade.Subject.Id">@teacherSubjectGrade.Subject.Name</option>
+				}
+			</select>
+			<label for="teacher">Учитель</label>
+			<select name="teacher" @bind="tteacher">
+				@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.Where(x => x.Subject.Id == ssubject && x.Grade.Id == ggrade).DistinctBy(x => x.Teacher.last_name))
+				{
+					<option value="@teacherSubjectGrade.Teacher.id">@teacherSubjectGrade.Teacher.last_name
+						@teacherSubjectGrade.Teacher.first_name.Substring(0, 1).@teacherSubjectGrade.Teacher.patronymic.Substring(0, 1).
+					</option>
+					tteacher = @teacherSubjectGrade.Teacher.id;
+				}
+			</select>
+			<label for="number">Порядок</label>
+			<input name="number" @bind="number" />
+			@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.Where(tsg => tsg.Teacher.id == tteacher &&
+					tsg.Grade.Id == ggrade &&
+					tsg.Subject.Id == ssubject))
+			{
+				tsg = teacherSubjectGrade.Id;
+			}
+			<button type="button" @onclick="Add">Добавить</button>			
+		</div>
+		@n
+	}
+</div>
+
+@code {
+	[Parameter]
+	public int n { get; set; }
+
+	private bool loading = true;
+
+	public int ggrade;
+
+	public int tteacher;
+
+	public int ssubject;
+
+	public int count = 0;
+
+	public int number;
+
+	public int tsg;
+
+	public string weekday = "Понедельник";
+
+	public string[] weekdays = new string[5] { "Понедельник", "Вторник", "Среда", "Четверг", "Пятница" };
+
+	private List<Data.Database.Model.TeacherSubjectGrade> teacherSubjectGrades;
+
+	private List<Data.Database.Model.Schedule> schedules;
+
+	private List<Data.Database.Model.Grade> grades;
+
+	private async Task LoadSpecs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			teacherSubjectGrades = await db.TeacherSubjectGrades.Include(x => x.Teacher).Include(x => x.Subject).Include(x => x.Grade).ToListAsync();
+			schedules = await db.Schedules.Include(x => x.TeacherSubjectGrade).ToListAsync();
+			grades = await db.Grades.ToListAsync();
+		}
+		loading = false;
+	}
+	private async Task Add()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			Data.Database.Model.Schedule schedule = new Data.Database.Model.Schedule();
+			schedule.Number = number;
+			schedule.Weekday = weekday;
+			schedule.TeacherSubjectGradeId = tsg;
+			db.Schedules.Add(schedule);
+			db.SaveChanges();
+			StateHasChanged();
+			await db.SaveChangesAsync();
+			navigation.Refresh(forceReload: true);
+		}
+		n = ggrade;
+	}
+	private async Task DeleteSced(int id)
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			try
+			{
+				var scedToRemove = await db.Schedules
+					.FirstAsync(sced => sced.Id == id);
+
+				db.Schedules.Remove(scedToRemove);
+				db.SaveChanges();
+				StateHasChanged();
+				await db.SaveChangesAsync();
+				navigation.Refresh(forceReload: true);
+
+			}
+			catch
+			{
+				Exception e = new Exception("ошибка");
+			}
+
+		}
+	}
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadSpecs();
+		if (n != 0)
+		{
+			ggrade = n;
+		}
+		else
+		{
+			ggrade = 1;
+		}
+	}
+}

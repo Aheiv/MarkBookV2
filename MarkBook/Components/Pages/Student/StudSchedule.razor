@@ -1,0 +1,121 @@
+﻿@page "/student{n}/schedule"
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<div>
+	@if (!loading)
+	{
+		<div class="container h-50 py-10">
+			<div style="height:500px; overflow-y: scroll;">
+				<table class="table table-striped">
+					<thead>
+						<tr>
+							<th scope="col">День недели</th>
+							<th scope="col">Порядок урока</th>
+							<th scope="col">Урок</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (string a in weekdays)
+						{
+							@foreach (Data.Database.Model.Student student in students.Where(x => x.Id == int.Parse(n)))
+							{
+								@foreach (Data.Database.Model.Schedule schedule in schedules.Where(x => x.Weekday == a && x.TeacherSubjectGrade.Grade.Id == student.Grade.Id))
+								{
+									count++;
+								}
+							}
+							@if (count > 1)
+							{
+								count++;
+								<tr>
+									<th rowspan="@count" align="center">@a</th>
+								</tr>
+								count = 0;
+								@foreach (Data.Database.Model.Student student in students.Where(x => x.Id == int.Parse(n)))
+								{
+									@foreach (Data.Database.Model.Schedule schedule in schedules.Where(x => x.Weekday == a &&
+														x.TeacherSubjectGrade.Grade.Id == student.Grade.Id).OrderBy(x => x.Number))
+									{
+										var sID = schedule.Id;
+										<tr>
+											<td>@schedule.Number</td>
+											<td>
+												@schedule.TeacherSubjectGrade.Subject.Name (Учитель: @schedule.TeacherSubjectGrade.Teacher.last_name
+												@schedule.TeacherSubjectGrade.Teacher.first_name.Substring(0, 1).@schedule.TeacherSubjectGrade.Teacher.patronymic.Substring(0, 1).)
+											</td>
+										</tr>
+									}
+
+								}
+
+							}
+							else
+							{
+								<tr>
+									<th align="center">@a</th>
+									@foreach (Data.Database.Model.Student student in students.Where(x => x.Id == int.Parse(n)))
+									{
+									@foreach (Data.Database.Model.Schedule schedule in schedules.Where(x => x.Weekday == a &&
+															x.TeacherSubjectGrade.Grade.Id == student.Grade.Id).OrderBy(x => x.Number))
+									{
+										var sID = schedule.Id;
+										<td>@schedule.Number</td>
+										<td>
+											@schedule.TeacherSubjectGrade.Subject.Name (Учитель: @schedule.TeacherSubjectGrade.Teacher.last_name
+											@schedule.TeacherSubjectGrade.Teacher.first_name.Substring(0, 1).@schedule.TeacherSubjectGrade.Teacher.patronymic.Substring(0, 1).)
+										</td>
+									}
+									}
+								</tr>
+								count = 0;
+							}
+						}
+
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	private bool loading = true;
+
+	public int count = 0;
+
+	private List<Data.Database.Model.TeacherSubjectGrade> teacherSubjectGrades;
+
+	private List<Data.Database.Model.Schedule> schedules;
+
+	private List<Data.Database.Model.Student> students;
+
+	public string weekday = "Понедельник";
+
+	public string[] weekdays = new string[5] { "Понедельник", "Вторник", "Среда", "Четверг", "Пятница" };
+
+	private async Task LoadSpecs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			teacherSubjectGrades = await db.TeacherSubjectGrades.Include(x => x.Teacher).Include(x => x.Subject).Include(x => x.Grade).ToListAsync();
+			schedules = await db.Schedules.Include(x => x.TeacherSubjectGrade).ToListAsync();
+			students = await db.Students.Include(x => x.Grade).ToListAsync();
+		}
+		loading = false;
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadSpecs();
+	}
+}

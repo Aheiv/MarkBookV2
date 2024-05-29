@@ -1,0 +1,201 @@
+﻿@page "/admin/students/addstudent/{n}"
+@using MarkBook.Data.FormModel
+
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+@inject NavigationManager navigation
+
+<EditForm Model="@studentFormModel" OnSubmit="Submit">
+	<div>
+		<div>
+			<MudInputLabel ForId="last-name">Фамилия</MudInputLabel>
+			<InputText id="last-name" @bind-Value="studentFormModel.LastName"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="first-name">Имя</MudInputLabel>
+			<InputText id="first-name" @bind-Value="studentFormModel.FirstName"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="patronymic">Отчество</MudInputLabel>
+			<InputText id="patronymic" @bind-Value="studentFormModel.Patronymic"></InputText>
+		</div>
+		<div>
+			<span>Выберите пол ученика</span>
+			<InputSelect @bind-Value="studentFormModel.Gender">
+				<option value="Муж">Мужской</option>
+				<option value="Жен">Женский</option>
+			</InputSelect>
+		</div>
+		<div>
+			<MudInputLabel ForId="date-of-birth">Дата рождения</MudInputLabel>
+			<InputDate id="date-of-birth" @bind-Value="studentFormModel.DateOfBirth" TValue="DateOnly" ></InputDate>
+		</div>
+
+		<div>
+			<MudInputLabel ForId="region">Регион</MudInputLabel>
+			<InputText id="region" @bind-Value="studentFormModel.Region"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="district">Район</MudInputLabel>
+			<InputText id="district" @bind-Value="studentFormModel.District"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="city">Населённый пункт</MudInputLabel>
+			<InputText id="city" @bind-Value="studentFormModel.City"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="street">Улица</MudInputLabel>
+			<InputText id="street" @bind-Value="studentFormModel.Street"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="house">Дом</MudInputLabel>
+			<InputText id="house" @bind-Value="studentFormModel.House"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="apartment">Квартира</MudInputLabel>
+			<InputText id="apartment" @bind-Value="studentFormModel.Apartment"></InputText>
+		</div>
+		<div>
+			<MudInputLabel ForId="phone-number">Номер телефона</MudInputLabel>
+			<InputText id="phone-number" @bind-Value="studentFormModel.PhoneNumber"></InputText>
+		</div>
+		<div>
+			<span>Выберите класс</span>
+			<InputSelect name="SelectedGradeId" @bind-Value="studentFormModel.Grade.Id">
+				@foreach (Data.Database.Model.Grade grade in grades)
+				{
+					<option value="@grade.Id">@grade.Name@grade.Subname</option>
+				}
+			</InputSelect>
+		</div>
+		<div>
+			<span>Статус</span>
+			<InputSelect @bind-Value="studentFormModel.Status">
+				<option></option>
+				<option>из малоимущей семьи</option>
+				<option>из многодетной семьи</option>
+				<option>сирота</option>
+				<option>инвалид</option>
+			</InputSelect>
+		</div>
+	</div>
+	@if (n != "0")
+	{
+		<button type="submit" class="btn btn-outline-info">Изменить ученика</button>
+	}
+	else
+	{
+		<button type="submit" class="btn btn-outline-info">Добавить ученика</button>
+	}
+</EditForm>
+
+@code 
+{
+	[Parameter]
+	public string n { get; set; }
+
+	public StudentFormModel studentFormModel = new();
+
+	private List<Data.Database.Model.Grade> grades = new List<Data.Database.Model.Grade>();
+	private bool loading = true;
+
+	private async Task Submit()
+	{
+		if (n == "0")
+		{
+			Data.Database.Model.Student student = ConvertFormModelToEntity();
+			using (var db = DbFactory.CreateDbContext())
+			{
+				db.Students.Add(student);
+				await db.SaveChangesAsync();
+			}
+			navigation.NavigateTo("/admin/students");
+		}
+		else
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var studentToEdit = await db.Students
+					.FirstAsync(student => student.Id == int.Parse(n));
+				studentToEdit.LastName = studentFormModel.LastName;
+				studentToEdit.FirstName = studentFormModel.FirstName;
+				studentToEdit.Patronymic = studentFormModel.Patronymic;
+				studentToEdit.Gender = studentFormModel.Gender;
+				studentToEdit.DateOfBirth = studentFormModel.DateOfBirth;
+				studentToEdit.Region = studentFormModel.Region;
+				studentToEdit.City = studentFormModel.City;
+				studentToEdit.District = studentFormModel.District;
+				studentToEdit.Street = studentFormModel.Street;
+				studentToEdit.House = studentFormModel.House;
+				studentToEdit.Apartment = studentFormModel.Apartment;
+				studentToEdit.PhoneNumber = studentFormModel.PhoneNumber;
+				studentToEdit.GradeId = studentFormModel.Grade.Id;
+				studentToEdit.Status = studentFormModel.Status;
+				db.Students.Update(studentToEdit);
+				await db.SaveChangesAsync();
+			}
+			navigation.NavigateTo("/admin/students");
+		}
+	}
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadGrades();
+		if (n != "0")
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var studentToEdit = await db.Students
+					.FirstAsync(student => student.Id == int.Parse(n));
+				studentFormModel.LastName = studentToEdit.LastName;
+				studentFormModel.FirstName = studentToEdit.FirstName;
+				studentFormModel.Patronymic = studentToEdit.Patronymic;
+				studentFormModel.Gender = studentToEdit.Gender;
+				studentFormModel.DateOfBirth = studentToEdit.DateOfBirth;
+				studentFormModel.Region = studentToEdit.Region;
+				studentFormModel.City = studentToEdit.City;
+				studentFormModel.District = studentToEdit.District;
+				studentFormModel.Street = studentToEdit.Street;
+				studentFormModel.House = studentToEdit.House;
+				studentFormModel.Apartment = studentToEdit.Apartment;
+				studentFormModel.PhoneNumber = studentToEdit.PhoneNumber;
+				studentFormModel.Grade.Id = studentToEdit.GradeId;
+				studentFormModel.Status = studentToEdit.Status;
+			}
+		}
+		else
+		{
+			studentFormModel.Grade.Id = grades[1].Id;
+			studentFormModel.Gender = "Женский";
+		}
+	}
+
+	private async Task LoadGrades()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			grades = await db.Grades.ToListAsync();
+		}
+		loading = false;
+	}
+	private Data.Database.Model.Student ConvertFormModelToEntity()
+	{
+		Data.Database.Model.Student student = new Data.Database.Model.Student();
+		student.LastName = studentFormModel.LastName;
+		student.FirstName = studentFormModel.FirstName;
+		student.Patronymic = studentFormModel.Patronymic;
+		student.Gender = studentFormModel.Gender;
+		student.DateOfBirth = studentFormModel.DateOfBirth;
+		student.Region = studentFormModel.Region;
+		student.District = studentFormModel.District;
+		student.City = studentFormModel.City;
+		student.Street = studentFormModel.Street;
+		student.House = studentFormModel.House;
+		student.Apartment = studentFormModel.Apartment;
+		student.PhoneNumber = studentFormModel.PhoneNumber;
+		student.GradeId = studentFormModel.Grade.Id;
+		student.Status = studentFormModel.Status;
+		return student;
+	}
+}

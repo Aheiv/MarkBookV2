@@ -1,0 +1,28 @@
+﻿@page "/admin/registration"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<div>
+	<div class="container h-50 py-10">
+		fidada52
+	</div>
+</div>
+
+@code {
+	public string username;
+
+	public string password;
+
+	private async Task AddUser()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			Data.Database.Model.TeacherUser tu = new Data.Database.Model.TeacherUser();
+
+		}
+	}
+}

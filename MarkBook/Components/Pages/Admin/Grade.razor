@@ -1,0 +1,107 @@
+﻿@page "/admin/grades"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.AdminLayout
+@rendermode InteractiveServer
+@if (dialog == true)
+{
+	<dialog open>
+		@foreach (Data.Database.Model.Grade grade in grades.Where(x => x.Id == temp))
+		{
+			<p>Вы уверены, что хотите удалить @grade.Name@grade.Subname класс?</p>
+			<button class="btn btn-secondary" @onclick="Cancel">Отмена</button>
+			<button class="btn btn-danger" @onclick="DeleteGrade">Удалить</button>
+		}
+	</dialog>
+}
+<div>
+	<div class="container h-50 py-10">
+		@if (!loading)
+		{
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">#</th>
+						<th scope="col">Класс</th>
+						<th scope="col">Литера</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (Data.Database.Model.Grade grade in grades)
+					{
+						var gID = grade.Id;
+						<tr>
+							<th scope="row">@grade.Id</th>
+							<td>@grade.Name</td>
+							<td>@grade.Subname</td>
+							<td>
+								<button class="btn btn-danger" @onclick=@(() => {OpenDialog(gID);})>Удалить</button>
+								<button type="button" class="btn btn-success" @onclick="@(() => {RedirectToAG(gID);})">Изменить</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+		<button type="button" class="btn btn-primary" @onclick="@(() => {RedirectToAG(0);})">Добавить класс</button>
+	</div>
+</div>
+
+
+@code {
+	public bool dialog = false;
+	public int temp;
+	private int RedirectToAG(int n)
+	{
+		if (n == 0) navigation.NavigateTo("/admin/grades/addgrades/0");
+		else
+		{
+			navigation.NavigateTo($"/admin/grades/addgrades/{n}");
+		}
+		return n;
+	}
+	private bool loading = true;
+
+	private List<Data.Database.Model.Grade> grades;
+
+	private async Task LoadGrades()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			grades = await db.Grades.ToListAsync();
+		}
+		loading = false;
+	}
+	private async Task OpenDialog(int id)
+	{
+		dialog = true;
+		temp = id;
+	}
+	private async Task Cancel()
+	{
+		dialog = false;
+	}
+	private async Task DeleteGrade()
+	{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var gradeToRemove = await db.Grades
+					.FirstAsync(grade => grade.Id == temp);
+
+				db.Grades.Remove(gradeToRemove);
+				db.SaveChanges();
+				StateHasChanged();
+				await db.SaveChangesAsync();
+				navigation.Refresh(forceReload: true);
+
+			}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadGrades();
+	}
+}

@@ -1,0 +1,145 @@
+﻿@page "/admin/parents/addparents/{n}"
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<div class="container h-50 py-10">
+	<div>
+		<div class="d-inline-block">
+			<p>Фамилия</p>
+		</div>
+		<div class="d-inline-block">
+			<input @bind-value="Surname" class="rounded">
+		</div>
+	</div>
+	<div>
+		<div class="d-inline-block">
+			<p>Имя</p>
+		</div>
+		<div class="d-inline-block">
+			<input @bind-value="Name" class="rounded">
+		</div>
+	</div>
+	<div>
+		<div class="d-inline-block">
+			<p>Отчество</p>
+		</div>
+		<div class="d-inline-block">
+			<input @bind-value="Patronymic" class="rounded">
+		</div>
+	</div>
+	<div>
+		<div class="d-inline-block">
+			<p>Номер телефона</p>
+		</div>
+		<div class="d-inline-block">
+			<input type="" @bind-value="PhoneNumber" class="rounded">
+		</div>
+	</div>
+	<div>
+		<div class="d-inline-block">
+			<p>Место работы</p>
+		</div>
+		<div class="d-inline-block">
+			<input @bind-value="Workplace" class="rounded">
+		</div>
+	</div>
+	<div>
+		<div class="d-inline-block">
+			<p>Профессия</p>
+		</div>
+		<div class="d-inline-block">
+			<input @bind-value="Profession" class="rounded">
+		</div>
+	</div>
+	<div>
+		@if (n != "0")
+		{
+			<button type="button" class="btn btn-outline-info" @onclick="AddParent">Изменить родителя</button>
+		}
+		else 
+		{
+			<button type="button" class="btn btn-outline-info" @onclick="AddParent">Добавить родителя</button>
+		}
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	private string Surname { get; set; }
+
+	private string Name { get; set; }
+
+	private string? Patronymic { get; set; }
+
+	private string? PhoneNumber { get; set; }
+
+	private string? Workplace { get; set; }
+
+	private string? Profession { get; set; }
+
+	protected override async Task OnInitializedAsync()
+	{
+		await OnLoad();
+	}
+	private async Task OnLoad()
+	{
+		if (n != "0")
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var parentToEdit = await db.Parents
+					.FirstAsync(parent => parent.Id == int.Parse(n));
+				Surname = parentToEdit.LastName;
+				Name = parentToEdit.FirstName;
+				Patronymic = parentToEdit.Patronymic;
+				PhoneNumber = parentToEdit.PhoneNumber;
+				Workplace = parentToEdit.Workplace;
+				Profession = parentToEdit.Profession;
+			}
+		}
+	}
+	private async Task AddParent()
+	{
+		if (n == "0")
+		{
+				using (var db = DbFactory.CreateDbContext())
+				{
+					Data.Database.Model.Parent p = new Data.Database.Model.Parent();
+					p.LastName= Surname;
+					p.FirstName = Name;
+					p.Patronymic = Patronymic;
+					p.PhoneNumber = PhoneNumber.ToString();
+					p.Workplace = Workplace;
+					p.Profession = Profession;
+					db.Parents.Add(p);
+					await db.SaveChangesAsync();
+				}
+		
+		}
+		else
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var parentToEdit = await db.Parents
+					.FirstAsync(parent => parent.Id == int.Parse(n));
+				parentToEdit.LastName = Surname;
+				parentToEdit.FirstName = Name;
+				parentToEdit.Patronymic = Patronymic;
+				parentToEdit.PhoneNumber= PhoneNumber.ToString();
+				parentToEdit.Workplace = Workplace;
+				parentToEdit.Profession = Profession;
+				db.Parents.Update(parentToEdit);
+				await db.SaveChangesAsync();
+			}
+		}
+		navigation.NavigateTo("/admin/parents");
+	}
+	
+}

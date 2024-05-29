@@ -1,0 +1,35 @@
+﻿@page "/teacher{n}/extras"
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@layout Components.Layout.LeaveLayout
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+
+<div>
+	<div class="container h-100 py-5">
+		<table class="table table-striped">
+			<thead>
+				<tr>
+					<th scope="col">Тема</th>
+					<th scope="col">Часы</th>
+					<th scope="col">Класс</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<th scope="row">Прогулка на природе</th>
+					<td>1</td>
+					<td>8А</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>
+
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+}

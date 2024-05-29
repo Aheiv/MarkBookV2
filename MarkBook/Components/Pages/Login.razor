@@ -1,0 +1,129 @@
+﻿@page "/login"
+@using MarkBook.Data.Login
+@using Microsoft.EntityFrameworkCore
+
+@rendermode InteractiveServer
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@inject NavigationManager navigation
+@layout Components.Layout.MainLayout
+
+<PageTitle>Вход</PageTitle>
+
+@if (dialog == true)
+{
+	<dialog open>
+		<p>Неверный логин или пароль!</p>
+		<button class="btn btn-secondary" @onclick="Close">ОК</button>
+	</dialog>
+}
+<div>
+	@if (!loading)
+	{
+		<div class="container h-50 py-10">
+			<EditForm Model="@loginModel" OnSubmit="Submit">
+			<div class="text-left">
+				<p>Для выполнения входа в систему укажите свой логин и пароль</p>
+			</div>
+			<div>
+				<p>Логин
+					<InputText @bind-Value="loginModel.Login" class="rounded"></InputText>
+				</p>
+			</div>
+			<div>
+				<p>Пароль
+				<InputText @bind-Value="loginModel.Password" class="rounded"></InputText> 
+				</p>
+			</div>
+
+			<DataAnnotationsValidator />
+			<ValidationSummary />
+
+			<div>
+				<button type="submit" class="btn btn-primary">Войти в систему</button>
+			</div>
+		</EditForm>
+	</div>
+	}
+</div>
+
+@code {
+	private bool loading = true;
+
+	private LoginModel loginModel = new LoginModel();
+
+	private List<Data.Database.Model.TeacherUser> teacherUsers;
+
+	private List<Data.Database.Model.ParentUser> parentUsers;
+
+	private List<Data.Database.Model.StudentUser> studentUsers;
+
+	public bool dialog = false;
+
+	private int check = 1;
+
+	private async Task LoadUsers()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			teacherUsers = await db.TeacherUsers.Include(x => x.Teacher).ToListAsync();
+			parentUsers = await db.ParentUsers.Include(x => x.Parent).ToListAsync();
+			studentUsers = await db.StudentUsers.Include(x => x.Student).ToListAsync();
+		}
+		loading = false;
+	}
+
+	private void Submit()
+	{
+		if (loginModel.Login == "admin" && loginModel.Password == "123456")
+		{
+			navigation.NavigateTo("/admin/grades");
+		}
+		else
+		{
+			@foreach (Data.Database.Model.TeacherUser tu in teacherUsers)
+			{
+				if (loginModel.Login == tu.Username && loginModel.Password == tu.Password)
+				{
+					navigation.NavigateTo($"/teacher{tu.Teacher.id}");
+				}
+				else check = 2;
+			}
+			if (check == 2)
+			{
+				@foreach (Data.Database.Model.ParentUser pu in parentUsers)
+				{
+					if (loginModel.Login == pu.Username && loginModel.Password == pu.Password)
+					{
+						navigation.NavigateTo($"/parent{pu.Parent.Id}");
+					}
+					else check = 3;
+				}
+			}
+			if (check == 3)
+			{
+				@foreach (Data.Database.Model.StudentUser su in studentUsers)
+				{
+					if (loginModel.Login == su.Username && loginModel.Password == su.Password)
+					{
+						navigation.NavigateTo($"/student{su.Student.Id}");
+					}
+					else check = 4;
+				}
+			}
+			if (check == 4)
+			{
+				dialog = true;
+				check = 1;
+			}
+		}
+	}
+	private async Task Close()
+	{
+		dialog = false;
+	}
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadUsers();
+	}
+}

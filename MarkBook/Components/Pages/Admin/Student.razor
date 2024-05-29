@@ -1,0 +1,179 @@
+﻿@page "/admin/students"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.AdminLayout
+@rendermode InteractiveServer
+
+<div>
+	<div class="container h-50 py-10">
+		@if (!loading)
+		{
+			<div>
+				<button type="button" class="btn btn-primary" @onclick="@(() => {RedirectToAStu(0);})">Добавить ученика</button>
+				<label for="fio">ФИО</label>
+				<input name="fio" @bind="fio"/>
+				<label for="grade">Класс</label>
+				<input name="grade" @bind="ggrade"/>
+				<label for="city">Населённый пункт</label>
+				<input name="city" @bind="citty" />
+				<label for="status">Статус</label>
+				<select name="status" @bind="sstatus">
+					<option></option>
+					<option>из малоимущей семьи</option>
+					<option>из многодетной семьи</option>
+					<option>сирота</option>
+					<option>инвалид</option>
+				</select>
+			</div>
+			<div style="height:550px; overflow-y: scroll;">
+				<table class="table table-striped">
+					<thead>
+						<tr>
+							<th scope="col">#</th>
+							<th scope="col">ФИО</th>
+							<th scope="col">Пол</th>
+							<th scope="col">Дата рождения</th>
+							<th scope="col">Регион</th>
+							<th scope="col">Район</th>
+							<th scope="col">Населённый пункт</th>
+							<th scope="col">Улица</th>
+							<th scope="col">Дом</th>
+							<th scope="col">Квартира</th>
+							<th scope="col">Номер телефона</th>
+							<th scope="col">Класс</th>
+						</tr>
+					</thead>
+					<tbody>
+						@if (sstatus == "")
+						{
+							@foreach (Data.Database.Model.Student student in students.OrderBy(x => x.Grade.Name))
+							{
+								string fullName = $"{student.LastName} {student.FirstName} {student.Patronymic}";
+								string fullClassName = student.Grade.Name + student.Grade.Subname;
+								var sID = student.Id;
+								@if (fio.ToLower() == fullName.Substring(0, fio.Length).ToLower() && ggrade.ToLower() == fullClassName.Substring(0, ggrade.Length).ToLower() &&
+																										citty.ToLower() == student.City.Substring(0, citty.Length).ToLower())
+								{
+										<tr>
+											<th scope="row">@student.Id</th>
+											<td>@fullName</td>
+											<td>@student.Gender</td>
+											<td>@student.DateOfBirth</td>
+											<td>@student.Region</td>
+											<td>@student.District</td>
+											<td>@student.City</td>
+											<td>@student.Street</td>
+											<td>@student.House</td>
+											<td>@student.Apartment</td>
+											<td>@student.PhoneNumber</td>
+											<td>@fullClassName</td>
+											<td>
+												<button class="btn btn-danger" @onclick="@(() => {DeleteStudent(sID);})">Удалить</button>
+												<button type="button" class="btn btn-success" @onclick="@(() => {RedirectToAStu(sID);})">Изменить</button>
+											</td>
+										</tr>
+								}
+							}
+						}
+						else
+						{
+							@foreach (Data.Database.Model.Student student in students.OrderBy(x => x.Grade.Name))
+							{
+								string fullName = $"{student.LastName} {student.FirstName} {student.Patronymic}";
+								string fullClassName = student.Grade.Name + student.Grade.Subname;
+								var sID = student.Id;
+								@if (fio.ToLower() == fullName.Substring(0, fio.Length).ToLower() && ggrade.ToLower() == fullClassName.Substring(0, ggrade.Length).ToLower() &&
+													citty.ToLower() == student.City.Substring(0, citty.Length).ToLower() && sstatus == student.Status)
+								{
+										<tr>
+											<th scope="row">@student.Id</th>
+											<td>@fullName</td>
+											<td>@student.Gender</td>
+											<td>@student.DateOfBirth</td>
+											<td>@student.Region</td>
+											<td>@student.District</td>
+											<td>@student.City</td>
+											<td>@student.Street</td>
+											<td>@student.House</td>
+											<td>@student.Apartment</td>
+											<td>@student.PhoneNumber</td>
+											<td>@fullClassName</td>
+											<td>
+												<button class="btn btn-danger" @onclick="@(() => {DeleteStudent(sID);})">Удалить</button>
+												<button type="button" class="btn btn-success" @onclick="@(() => {RedirectToAStu(sID);})">Изменить</button>
+											</td>
+										</tr>
+								}
+							}
+						}
+					</tbody>
+			</table>
+			</div>
+		}
+	</div>
+</div>
+
+@code {
+	private string ggrade = "";
+
+	private string fio = "";
+
+	private string citty = "";
+
+	private string sstatus = "";
+
+	private int RedirectToAStu(int n)
+	{
+		if (n == 0) navigation.NavigateTo("/admin/students/addstudent/0");
+		else
+		{
+			navigation.NavigateTo($"/admin/students/addstudent/{n}");
+		}
+		return n;
+	}
+
+	private bool loading = true;
+
+	private List<Data.Database.Model.Student> students;
+
+	private async Task LoadStudents()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			students = await db.Students.Include(x => x.Grade).ToListAsync();
+		}
+		loading = false;
+	}
+	private async Task DeleteStudent(int id)
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			try
+			{
+				var studentToRemove = await db.Students
+					.FirstAsync(student => student.Id == id);
+
+				db.Students.Remove(studentToRemove);
+				db.SaveChanges();
+				StateHasChanged();
+				await db.SaveChangesAsync();
+				navigation.Refresh(forceReload: true);
+
+			}
+			catch
+			{
+				Exception e = new Exception("ошибка");
+			}
+
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadStudents();
+	}
+	
+}

@@ -1,0 +1,115 @@
+﻿@page "/parent{n}"
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@layout Components.Layout.LeaveLayout
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+
+<PageTitle>Меню ученика</PageTitle>
+<div>
+</div>
+<div>
+	@if (!loading)
+	{
+		<div class="container h-100 py-5">
+			<div class="row h-100 justify-content-center align-items-center">
+				<div class="col-6 w-50 h-50">
+					<div class="position-relative">
+						<div class="position-absolute top-50 start-50 translate-middle my-4">
+							<button type="button" class="btn btn-primary" @onclick="RedirectToGrades">Просмотр оценок</button>
+							<button type="button" class="btn btn-primary" @onclick="RedirectToSchedule">Расписание</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div>
+				<div class="container h-100 py-5">
+					<h2>Домашнее задание</h2>
+					<select name="subject" @bind="ssubject">
+						@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.DistinctBy(x => x.Subject.Name))
+						{
+							<option value="@teacherSubjectGrade.Subject.Id">@teacherSubjectGrade.Subject.Name</option>
+						}
+					</select>
+					<select name="student" @bind="sstudent">
+						@foreach (Data.Database.Model.ParentStudent pa in parentStudents.Where(x => x.Parent.Id == int.Parse(n)))
+						{
+						@foreach (Data.Database.Model.Student student in students.Where(x => x.Id == pa.Student.Id))
+						{
+							<option value="@student.Grade.Id">@student.LastName @student.FirstName.Substring(0, 1).@student.Patronymic.Substring(0, 1).</option>
+						}
+						}
+					</select>
+
+				</div>
+				<div>
+					@foreach (Data.Database.Model.Calendar calendar in calendars.Where(x => x.TeacherSubjectGrade.Teacher.id == 1
+										&& x.TeacherSubjectGrade.Grade.Id == sstudent
+										&& x.TeacherSubjectGrade.Subject.Id == ssubject).OrderBy(x => x.Number))
+					{
+						if (calendar.Completion == true) continue;
+						else if (calendar.Completion == false)
+						{
+							<label for="number">Номер урока</label>
+							<input name="number" disabled value="@calendar.Number" />
+							<label for="theme">Тема урока</label>
+							<input name="theme" disabled value="@calendar.Theme" />
+							<label for="about">Содержание</label>
+							<input name="about" disabled value="@calendar.About" />
+							<label for="homework">Домашнее задание</label>
+							<input name="homework" disabled value="@calendar.Homework" />
+							break;
+						}
+					}
+				</div>
+			</div>
+		</div>
+	}
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+	private bool loading = true;
+
+	public int ssubject = 1;
+
+	public int sstudent = 12;
+
+	private List<Data.Database.Model.Calendar> calendars;
+
+	private List<Data.Database.Model.TeacherSubjectGrade> teacherSubjectGrades;
+
+	private List<Data.Database.Model.Student> students;
+
+	private List<Data.Database.Model.ParentStudent> parentStudents;
+
+	private async Task LoadSpecs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			calendars = await db.Calendars.Include(c => c.TeacherSubjectGrade).ToListAsync();
+			teacherSubjectGrades = await db.TeacherSubjectGrades.Include(x => x.Teacher).Include(x => x.Subject).Include(x => x.Grade).ToListAsync();
+			students = await db.Students.Include(x => x.Grade).ToListAsync();
+			parentStudents = await db.ParentStudents.Include(x => x.Student).Include(x => x.Parent).ToListAsync();
+		}
+		loading = false;
+	}
+
+	private void RedirectToGrades()
+	{
+		navigation.NavigateTo($"/parent{n}/marks");
+	}
+	private void RedirectToSchedule()
+	{
+		navigation.NavigateTo($"/parent{n}/schedule");
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadSpecs();
+	}
+}

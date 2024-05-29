@@ -1,0 +1,117 @@
+﻿@page "/admin/specializations"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.AdminLayout
+@rendermode InteractiveServer
+
+<div>
+	<div class="container h-50 py-10">
+		@if (!loading)
+		{
+			<button type="button" class="btn btn-primary" @onclick="@(() => {RedirectToAS(0);})">Добавить связь</button>
+			<label for="subject">Предмет</label>
+			<input name="subject" @bind="ssubject" />
+			<label for="grade">Класс</label>
+			<input name="grade" @bind="ggrade" />
+			<label for="teacher">Учитель</label>
+			<input name="teacher" @bind="tteacher" />
+			<div style="height:550px; overflow-y: scroll;">
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">#</th>
+						<th scope="col">Предмет</th>
+						<th scope="col">ФИО учителя</th>
+						<th scope="col">Класс</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (Data.Database.Model.TeacherSubjectGrade tsg in teacherSubjectGrades)
+					{
+						string teacherFullName = $"{tsg.Teacher.last_name} {tsg.Teacher.first_name} {tsg.Teacher.patronymic}";
+						string fullGradeName = $"{tsg.Grade.Name} {tsg.Grade.Subname}";
+
+						var sID = tsg.Id;
+
+							@if (ssubject == tsg.Subject.Name.Substring(0, ssubject.Length) && ggrade == fullGradeName.Substring(0, ggrade.Length) &&
+												tteacher == teacherFullName.Substring(0, tteacher.Length))
+												{
+						<tr>
+							<th scope="row">@tsg.Id</th>
+							<td>@tsg.Subject.Name</td>
+							<td>@teacherFullName</td>
+							<td>@fullGradeName</td>
+							<td>
+								<button class="btn btn-danger" @onclick="@(() => {DeleteSpec(sID);})">Удалить</button>
+								<button type="button" class="btn btn-success" @onclick="@(() => {RedirectToAS(sID);})">Изменить</button>
+							</td>
+						</tr>
+												}
+					}
+				</tbody>
+			</table>
+			</div>
+		}
+	</div>
+</div>
+
+@code {
+	private string ggrade = "";
+
+	private string tteacher = "";
+
+	private string ssubject = "";
+
+	private int RedirectToAS(int n)
+	{
+		if (n == 0) navigation.NavigateTo("/admin/specializations/addspecializations/0");
+		else
+		{
+			navigation.NavigateTo($"/admin/specializations/addspecializations/{n}");
+		}
+		return n;
+	}
+	private bool loading = true;
+
+	private List<Data.Database.Model.TeacherSubjectGrade> teacherSubjectGrades;
+
+	private async Task LoadSpecs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			teacherSubjectGrades = await db.TeacherSubjectGrades.Include(x => x.Teacher).Include(x => x.Subject).Include(x => x.Grade).ToListAsync();
+		}
+		loading = false;
+	}
+	private async Task DeleteSpec(int id)
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			try
+			{
+				var specToRemove = await db.TeacherSubjectGrades
+					.FirstAsync(tsg => tsg.Id == id);
+
+				db.TeacherSubjectGrades.Remove(specToRemove);
+				db.SaveChanges();
+				StateHasChanged();
+				await db.SaveChangesAsync();
+				navigation.Refresh(forceReload: true);
+
+			}
+			catch
+			{
+				Exception e = new Exception("ошибка");
+			}
+
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadSpecs();
+	}
+}

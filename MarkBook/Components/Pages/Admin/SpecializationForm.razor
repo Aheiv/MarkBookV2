@@ -1,0 +1,124 @@
+﻿@page "/admin/specializations/addspecializations/{n}"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<div class="container h-50 py-10">
+	<div>
+		@if (!loading)
+		{
+			<label for="grade">Класс</label>
+			<select name="grade" @bind="ggrade">
+				@foreach (Data.Database.Model.Grade grade in grades)
+				{
+					<option value="@grade.Id">@grade.Name@grade.Subname</option>
+				}
+			</select>
+			<label for="subject">Предмет</label>
+			<select name="subject" @bind="ssubject">
+				@foreach (Data.Database.Model.Subject subject in subjects)
+				{
+					<option value="@subject.Id">@subject.Name</option>
+				}
+			</select>
+			<label for="teacher">Учитель</label>
+			<select name="teacher" @bind="tteacher">
+				@foreach (Data.Database.Model.Teacher teacher in teachers)
+				{
+					<option value="@teacher.id">@teacher.last_name @teacher.first_name.Substring(0, 1).@teacher.patronymic.Substring(0, 1).</option>
+				}
+			</select>
+			@if (n != "0")
+			{
+				<button type="button" class="btn btn-outline-info" @onclick="AddSpecialization">Изменить связь</button>
+			}
+			else
+			{
+				<button type="button" class="btn btn-outline-info" @onclick="AddSpecialization">Добавить связь</button>
+			}
+		}
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	private bool loading = true;
+
+	public int ggrade;
+
+	public int tteacher;
+
+	public int ssubject;
+
+	private List<Data.Database.Model.Teacher> teachers;
+
+	private List<Data.Database.Model.Subject> subjects;
+
+	private List<Data.Database.Model.Grade> grades;
+
+	private async Task LoadSpecs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			grades = await db.Grades.ToListAsync();
+			subjects = await db.Subjects.ToListAsync();
+			teachers = await db.Teachers.ToListAsync();
+		}
+		loading = false;
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await OnLoad();
+		await LoadSpecs();
+	}
+	private async Task OnLoad()
+	{
+		if (n != "0")
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var tsgToEdit = await db.TeacherSubjectGrades
+					.FirstAsync(tsg => tsg.Id == int.Parse(n));
+				ggrade = tsgToEdit.GradeId;
+				ssubject = tsgToEdit.SubjectId;
+				tteacher = tsgToEdit.TeacherId;
+			}
+		}
+	}
+	private async Task AddSpecialization()
+	{
+		if (n == "0")
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				Data.Database.Model.TeacherSubjectGrade tsg = new Data.Database.Model.TeacherSubjectGrade();
+				tsg.GradeId = ggrade;
+				tsg.SubjectId = ssubject;
+				tsg.TeacherId = tteacher;
+				db.TeacherSubjectGrades.Add(tsg);
+				await db.SaveChangesAsync();
+			}
+		}
+		else
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var tsgToEdit = await db.TeacherSubjectGrades
+					.FirstAsync(sub => sub.Id == int.Parse(n));
+				tsgToEdit.GradeId = ggrade;
+				tsgToEdit.SubjectId = ssubject;
+				tsgToEdit.TeacherId = tteacher;
+				db.TeacherSubjectGrades.Update(tsgToEdit);
+				await db.SaveChangesAsync();
+			}
+		}
+		navigation.NavigateTo("/admin/specializations");
+	}
+}

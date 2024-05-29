@@ -1,0 +1,149 @@
+﻿@page "/teacher{n}/calendar"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.LeaveLayout
+@rendermode InteractiveServer
+
+<div class="container h-50 py-10">
+	@if (!loading)
+		{
+		<label for="grade">Класс</label>
+		<select name="grade" @bind="ggrade">
+			@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.Where(x => x.Teacher.id == int.Parse(n)).DistinctBy(x => x.Grade.Name))
+			{
+				<option value="@teacherSubjectGrade.Grade.Id">@teacherSubjectGrade.Grade.Name@teacherSubjectGrade.Grade.Subname</option>
+			}
+		</select>
+		<label for="subject">Предмет</label>
+		<select name="subject" @bind="ssubject">
+			@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.Where(x => x.Teacher.id == int.Parse(n)).DistinctBy(x => x.Subject.Name))
+			{
+				<option value="@teacherSubjectGrade.Subject.Id">@teacherSubjectGrade.Subject.Name</option>
+			}
+		</select>
+		@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.Where(tsg => tsg.Teacher.id == int.Parse(n) &&
+																												tsg.Grade.Id == ggrade &&
+																												tsg.Subject.Id == ssubject))
+		{
+			tsg = teacherSubjectGrade.Id;
+		}
+		<div>
+			<table class="table table-striped">
+			<thead>
+				<tr>
+					<th scope="col">№</th>
+					<th scope="col">Тема урока</th>
+					<th scope="col">Содержание</th>
+					<th scope="col">Домашнее задание</th>
+					<th scope="col"> </th>
+				</tr>
+			</thead>
+			<tbody>
+				
+				@foreach (Data.Database.Model.Calendar calendar in calendars.Where(c => c.TeacherSubjectGrade.Subject.Id == ssubject 
+																					&& c.TeacherSubjectGrade.Grade.Id == ggrade).OrderBy(x => x.Number))
+				{
+					var cId = calendar.Id;
+					<tr>
+					<th scope="row">@calendar.Number</th>
+					<td>@calendar.Theme</td>
+					<td>@calendar.About</td>
+					<td>@calendar.Homework</td>
+						@if (calendar.Completion == false)
+						{
+							<td><button @onclick="@(() => {Update(cId);})">Завершить</button></td>
+						}
+						else {<td><button disabled>Завершён</button></td>}
+					</tr>
+					num = calendar.Number;
+				}
+				<tr>
+					@{num = num + 1;}
+					<th scope="row"><input type="text" @bind="num" /></th>
+						<td><input type="text" @bind="ttheme" /></td>
+						<td><input type="text" @bind="aabout" /></td>
+						<td><input type="text" @bind="hwork" /></td>
+						<td><button @onclick="Add">Добавить</button></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+	}
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	public int num = 1;
+
+	public int ggrade = 1;
+
+	public int ssubject = 2;
+
+	public int tsg;
+
+	public string ttheme;
+
+	public string aabout;
+
+	public string hwork;
+
+	private bool loading = true;
+
+	private List<Data.Database.Model.Calendar> calendars;
+	private List<Data.Database.Model.TeacherSubjectGrade> teacherSubjectGrades;
+
+	private async Task LoadCalendar()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			calendars = await db.Calendars.Include(c => c.TeacherSubjectGrade).ToListAsync();
+			teacherSubjectGrades = await db.TeacherSubjectGrades.Include(x => x.Teacher).Include(x => x.Subject).Include(x => x.Grade).ToListAsync();
+		}
+		loading = false;
+
+	}
+
+	private async Task Update(int cId)
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			var calToEdit = await db.Calendars
+					.FirstAsync(cal => cal.Id == cId);
+			calToEdit.Completion = true;
+			db.Calendars.Update(calToEdit);
+			db.SaveChanges();
+			StateHasChanged();
+			await db.SaveChangesAsync();
+			navigation.Refresh(forceReload: true);
+		}
+	}
+
+	private async Task Add()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			Data.Database.Model.Calendar c = new Data.Database.Model.Calendar();
+			c.Number = num;
+			c.Theme = ttheme;
+			c.About = aabout;
+			c.Homework = hwork;
+			c.Completion = false;
+			c.TeacherSubjectGradeId = tsg;
+			db.Calendars.Add(c);
+			db.SaveChanges();
+			StateHasChanged();
+			await db.SaveChangesAsync();
+			navigation.Refresh(forceReload: true);
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadCalendar();
+	}
+}

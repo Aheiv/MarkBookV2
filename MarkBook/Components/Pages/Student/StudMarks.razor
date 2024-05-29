@@ -1,0 +1,168 @@
+﻿@page "/student{n}/marks"
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+<style>
+	table {
+		display: block;
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+</style>
+<div>
+	<div class="container h-50 py-10">
+		@if (!loading)
+		{
+			<div>
+				<label for="quarter">Четверть</label>
+				<select name="quarter" @bind="qquarter">
+					@foreach (Data.Database.Model.QuarterDate quarterDate in quarterDates.Where(q => q.StudyYear.Years == "2023-2024"))
+					{
+						<option value="@quarterDate.Number">@quarterDate.Number</option>
+					}
+				</select>
+			</div>
+			<div>
+				<table class="table table-striped">
+					<thead>
+						<tr>
+							<th scope="col">Предмет/Дата</th>
+							@foreach (Data.Database.Model.QuarterDate quarterDate in quarterDates.Where(q => q.StudyYear.Years == "2023-2024"
+												&& q.Number == qquarter))
+							{
+								for (int i = 0; i < quarterDate.DateOfEnd.DayOfYear - quarterDate.DateOfStart.DayOfYear; i++)
+								{
+									if (quarterDate.DateOfStart.AddDays(i).Day < 10 && quarterDate.DateOfStart.AddDays(i).Month < 10)
+									{
+										string day = $"0{quarterDate.DateOfStart.AddDays(i).Day}/0{quarterDate.DateOfStart.AddDays(i).Month}";
+										string year = $"{quarterDate.DateOfStart.AddDays(i).Year.ToString()}";
+										<th scope="col">@day/@year.Substring(year.Length - 2)</th>
+									}
+									else if (quarterDate.DateOfStart.AddDays(i).Day < 10 && quarterDate.DateOfStart.AddDays(i).Month >= 10)
+									{
+										string day = $"0{quarterDate.DateOfStart.AddDays(i).Day}";
+										string year = $"{quarterDate.DateOfStart.AddDays(i).Year.ToString()}";
+										<th scope="col">@day/@quarterDate.DateOfStart.AddDays(i).Month/@year.Substring(year.Length - 2)</th>
+									}
+									else if (quarterDate.DateOfStart.AddDays(i).Month < 10 && quarterDate.DateOfStart.AddDays(i).Day >= 10)
+									{
+										string day = $"0{quarterDate.DateOfStart.AddDays(i).Month}";
+										string year = $"{quarterDate.DateOfStart.AddDays(i).Year.ToString()}";
+										<th scope="col">@quarterDate.DateOfStart.AddDays(i).Day/@day/@year.Substring(year.Length - 2)</th>
+									}
+									else
+									{
+										string year = $"{quarterDate.DateOfStart.AddDays(i).Year.ToString()}";
+										<th scope="col">@quarterDate.DateOfStart.AddDays(i).Day/@quarterDate.DateOfStart.AddDays(i).Month/@year.Substring(year.Length - 2)</th>
+									}
+								}
+							}
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (Data.Database.Model.Student student in students.Where(s => s.Id == int.Parse(n)))
+						{
+							@foreach (Data.Database.Model.TeacherSubjectGrade teacherSubjectGrade in teacherSubjectGrades.Where(x => x.Grade.Id == student.Grade.Id))
+							{
+
+								int t = 0;
+
+								<tr>
+									<th scope="row">@teacherSubjectGrade.Subject.Name</th>
+								@foreach (Data.Database.Model.QuarterDate quarterDate in quarterDates.Where(q => q.StudyYear.Years == "2023-2024"
+													&& q.Number == qquarter))
+								{
+									@foreach (Data.Database.Model.StudentLesson studentLesson in studentLessons.Where(s => s.TeacherSubjectGrade.Subject.Id == 
+														teacherSubjectGrade.Subject.Id && s.Student.Id == student.Id &&
+														s.Date_Of_Lesson.Month == quarterDate.DateOfStart.Month ||
+														s.Date_Of_Lesson.Month == quarterDate.DateOfEnd.Month).OrderBy(s => s.Date_Of_Lesson))
+									{
+										int c = t;
+										for (int i = c; i < quarterDate.DateOfEnd.DayOfYear - quarterDate.DateOfStart.DayOfYear; i++)
+										{
+											string mark = " ";
+											if (studentLesson.Date_Of_Lesson == quarterDate.DateOfStart.AddDays(i) && studentLesson.Mark != null)
+											{
+												mark = studentLesson.Mark.ToString();
+												<td>
+													@mark
+												</td>
+												t = i + 1;
+												break;
+											}
+											else if (studentLesson.Date_Of_Lesson == quarterDate.DateOfStart.AddDays(i) && studentLesson.Appointment != null)
+											{
+												mark = studentLesson.Appointment;
+												<td>
+													@mark
+												</td>
+												t = i + 1;
+												break;
+											}
+											else
+											{
+												<td></td>
+											}
+										}
+
+									}
+								}
+							</tr>
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+</div>
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	private bool loading = true;
+
+	public int ggrade = 1;
+
+	public int ssubject = 1;
+
+	public int qquarter = 1;
+
+	private List<Data.Database.Model.TeacherSubjectGrade> teacherSubjectGrades;
+
+	private List<Data.Database.Model.QuarterDate> quarterDates;
+	private List<Data.Database.Model.Student> students;
+	private List<Data.Database.Model.StudentLesson> studentLessons;
+
+	private async Task LoadSpecs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			teacherSubjectGrades = await db.TeacherSubjectGrades.Include(x => x.Teacher).Include(x => x.Subject).Include(x => x.Grade).ToListAsync();
+			studentLessons = await db.StudentLessons.Include(x => x.Student).ToListAsync();
+			students = await db.Students.Include(x => x.Grade).ToListAsync();
+		}
+		loading = false;
+	}
+
+	private async Task LoadDates()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			quarterDates = await db.QuarterDates.Include(x => x.StudyYear).ToListAsync();
+		}
+		loading = false;
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadSpecs();
+		await LoadDates();
+	}
+}

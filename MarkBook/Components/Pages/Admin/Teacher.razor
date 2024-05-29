@@ -1,0 +1,97 @@
+﻿@page "/admin/teachers"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.AdminLayout
+@rendermode InteractiveServer
+
+<div>
+	<div class="container h-50 py-10">
+		@if (!loading)
+		{
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">#</th>
+						<th scope="col">Фамилия</th>
+						<th scope="col">Имя</th>
+						<th scope="col">Отчество</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (Data.Database.Model.Teacher teacher in teachers)
+					{
+						var tID = teacher.id;
+
+						<tr>
+							<th scope="row">@teacher.id</th>
+							<td>@teacher.last_name</td>
+							<td>@teacher.first_name</td>
+							<td>@teacher.patronymic</td>
+							<td>
+								<button class="btn btn-danger" @onclick="@(() => {DeleteTeacher(tID);})">Удалить</button>
+								<button type="button" class="btn btn-success" @onclick="@(() => {RedirectToAT(tID);})">Изменить</button>
+							</td>
+						</tr>
+
+					}
+				</tbody>
+			</table>
+		}
+		<button type="button" class="btn btn-primary" @onclick="@(() => {RedirectToAT(0);})">Добавить учителя</button>
+	</div>
+</div>
+
+@code {
+	private int RedirectToAT(int n)
+	{
+		if (n == 0) navigation.NavigateTo("/admin/parents/addteachers/0");
+		else
+		{
+			navigation.NavigateTo($"/admin/parents/addteachers/{n}");
+		}
+		return n;
+	}
+	private bool loading = true;
+
+	private List<Data.Database.Model.Teacher> teachers;
+
+	private async Task LoadTeachers()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			teachers = await db.Teachers.ToListAsync();
+		}
+		loading = false;
+	}
+	private async Task DeleteTeacher(int id)
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			try
+			{
+				var teacherToRemove = await db.Teachers
+					.FirstAsync(teacher => teacher.id == id);
+
+				db.Teachers.Remove(teacherToRemove);
+				db.SaveChanges();
+				StateHasChanged();
+				await db.SaveChangesAsync();
+				navigation.Refresh(forceReload: true);
+
+			}
+			catch
+			{
+				Exception e = new Exception("ошибка");
+			}
+
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadTeachers();
+	}
+}

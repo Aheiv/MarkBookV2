@@ -1,0 +1,77 @@
+﻿@page "/admin/subjects/addsubjects/{n}"
+@using Microsoft.EntityFrameworkCore
+
+@inject NavigationManager navigation
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<div class="container h-50 py-10">
+	<div>
+		<div class="d-inline-block">
+			<p>Название</p>
+		</div>
+		<div class="d-inline-block">
+			<input @bind-value="Name" class="rounded">
+		</div>
+	</div>
+	<div>
+		@if (n != "0")
+		{
+			<button type="button" class="btn btn-outline-info" @onclick="AddSubject">Изменить предмет</button>
+		}
+		else
+		{
+			<button type="button" class="btn btn-outline-info" @onclick="AddSubject">Добавить предмет</button>
+		}
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	private string Name { get; set; }
+
+	protected override async Task OnInitializedAsync()
+	{
+		await OnLoad();
+	}
+	private async Task OnLoad()
+	{
+		if (n != "0")
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var subjectToEdit = await db.Subjects
+					.FirstAsync(sub => sub.Id == int.Parse(n));
+				Name = subjectToEdit.Name;
+			}
+		}
+	}
+	private async Task AddSubject()
+	{
+		if (n == "0")
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				Data.Database.Model.Subject s = new Data.Database.Model.Subject();
+				s.Name = Name;
+				db.Subjects.Add(s);
+				await db.SaveChangesAsync();
+			}
+		}
+		else
+		{
+			using (var db = DbFactory.CreateDbContext())
+			{
+				var subjectToEdit = await db.Subjects
+					.FirstAsync(sub => sub.Id == int.Parse(n));
+				subjectToEdit.Name = Name;
+				db.Subjects.Update(subjectToEdit);
+				await db.SaveChangesAsync();
+			}
+		}
+		navigation.NavigateTo("/admin/subjects");
+	}
+}

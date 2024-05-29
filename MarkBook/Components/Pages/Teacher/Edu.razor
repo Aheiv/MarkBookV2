@@ -1,0 +1,111 @@
+﻿@page "/teacher{n}/eduworks"
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@layout Components.Layout.LeaveLayout
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+
+<div>
+	@if (!loading)
+	{
+		<div class="container h-100 py-5">
+			<label for="grade">Класс</label>
+			<select name="grade" @bind="ggrade">
+				@foreach (Data.Database.Model.Grade grade in grades.Where(x => x.Teacher.id == int.Parse(n)).DistinctBy(x => x.Name))
+				{
+					<option value="@grade.Id">@grade.Name@grade.Subname</option>
+				}
+			</select>
+			<label for="halfyear">Полугодие</label>
+			<select name="halfyear" @bind="hyear">
+				<option>1</option>
+				<option>2</option>
+			</select>
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						@if (hyear == 1)
+						{
+							<th scope="col">Направление</th>
+							foreach (string a in first)
+							{
+								<th scope="col">@a</th>
+							}
+						}
+						else if (hyear == 2)
+						{
+							<th scope="col">Направление</th>
+							foreach (string a in second)
+							{
+								<th scope="col">@a</th>
+							}
+						}
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (Data.Database.Model.EducationalWork edu in educationalWorks.Where(x => x.Grade.Id == ggrade).DistinctBy(x => x.Theme))
+						{
+						<tr>
+							<td>@edu.Theme</td>
+							@if (hyear == 1)
+							{
+								@foreach (Data.Database.Model.EducationalWork edus in educationalWorks.Where(x => x.Theme == edu.Theme && x.EventDate.Year == 2023).OrderBy(x => x.EventDate.Month))
+								{
+
+								}
+							}
+							else if (hyear == 2)
+							{
+								@foreach (Data.Database.Model.EducationalWork edus in educationalWorks.Where(x => x.Theme == edu.Theme && x.EventDate.Year == 2024).OrderBy(x => x.EventDate.Month))
+								{
+
+								}
+							}
+						
+						</tr>
+						}
+					
+				</tbody>
+			</table>
+		</div>
+	}
+	@date.
+</div>
+
+
+
+@code {
+	[Parameter]
+	public string n { get; set; }
+
+	private int ggrade;
+
+	private int hyear = 1;
+
+	public DateOnly date = new DateOnly(2023, 9, 23);
+
+	public string[] first = new string[4] { "Сентябрь", "Октябрь", "Ноябрь", "Декабрь" };
+	public string[] second = new string[5] { "Январь", "Февраль", "Март", "Апрель", "Май" };
+
+	private bool loading = true;
+
+	private List<Data.Database.Model.Grade> grades;
+	private List<Data.Database.Model.EducationalWork> educationalWorks;
+
+	private async Task LoadEdu()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			loading = true;
+			grades = await db.Grades.Include(c => c.Teacher).ToListAsync();
+			educationalWorks = await db.EducationalWorks.Include(x => x.Grade).ToListAsync();
+		}
+		loading = false;
+	}
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadEdu();
+	}
+}

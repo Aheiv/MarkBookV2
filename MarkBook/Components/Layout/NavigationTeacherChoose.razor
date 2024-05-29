@@ -1,0 +1,33 @@
+﻿@rendermode InteractiveServer
+@inject NavigationManager navigation
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light py-3 position-relative border-bottom">
+    <div class="container-xxl d-flex align-items-md-center">
+        <div class="col">
+            <a class="navbar-brand ms-3 brand">Твой дневник</a>
+        </div>
+        <div class="col-5">
+        </div>
+        <div class="col">
+            <select @bind="n">
+                <option value="marks">Выставление оценок</option>
+                <option value="avg">Оценки за четверть</option>
+                <option value="apps">Сводная ведомость учёта посещаемости</option>
+                <option value="miss">Сведения о количестве уроков, пропущенных обучающимися</option>
+                <option value="info">Общие сведения об обучающихся</option>
+            </select>
+        </div>
+        <div class="col">
+            <button type="button" @onclick=RedirectToLogin>Выход</button>
+        </div>
+    </div>
+</nav>
+
+@code {
+    public string n = "marks";
+
+    private void RedirectToLogin()
+    {
+        navigation.NavigateTo("/login");
+    }
+}
