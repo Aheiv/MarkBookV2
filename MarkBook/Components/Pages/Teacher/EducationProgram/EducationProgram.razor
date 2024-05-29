@@ -17,20 +17,23 @@
 		<button class="btn btn-primary" @onclick="ShowMaterials">Перечень учебно-методического обеспечения</button>
 	</div>
 	
-	<div class="sections" hidden="@(!isSectionsDisplayed)">
+	<div class="sections m-2" hidden="@(!isSectionsDisplayed)">
 		
-		<button class="btn btn-success ms-3" @onclick="NewSectionBlock">Новый раздел</button>
+		<button class="btn btn-success ms-2" @onclick="NewSectionBlock">Новый раздел</button>
 		<div class="m-2">
 			@foreach (var sec in sections)
 			{
 				
-				<div class="section flex-row border border-2 rounded-2 p-2 m-2 border-dark">
+				<div class="section flex-row border border-2 rounded-2 p-2 border-dark">
 					<div style="display: flex;" class="align-items-center">
-						<span>Название раздела</span>
-						<input placeholder="Название раздела" @bind=sec.Name />
-						<span>Количество часов, всего</span>
-						<input placeholder="Количество часов, всего" @bind=sec.Hours />
+						<span class="text-nowrap">Название раздела</span>
+						<input placeholder="Название раздела" @bind=sec.Name class="form-control w-50 ms-2 me-2" />
+
+						<span class="text-nowrap">Общее количество часов<br/>(вычисляется автоматически)</span>
+						<input placeholder="Кол-во часов, общее" @bind=sec.Hours disabled class="form-control w-25 ms-2 me-2" />
+
 						<span style="display: flex; flex: 1 1 auto"></span>
+
 						<button class="btn btn-danger" @onclick="@(e => RemoveSection(sec))">Удалить</button>
 						<button class="btn btn-outline-secondary m-2 " @onclick="@(e => CollapseSingleSection(sec))">
 							@GetButtonCollapseName(sec)
@@ -53,10 +56,20 @@
 									@foreach (var theme in sec.SectionThemes)
 									{
 										<tr class="theme-row">
-											<td><input @bind=theme.Name /></td>
-											<td><input @bind=theme.Hours /></td>
-											<td><input @bind=theme.Description /></td>
-											<td><button class="btn btn-danger" @onclick="@(e => sec.SectionThemes.Remove(theme))">Удалить</button></td>
+											<td class="w-25">
+												<input class="w-100 form-control" @bind=theme.Name />
+											</td>
+											<td class="w-25">
+												<input class="w-100 form-control" @bind=theme.Hours @onblur="@(e => sec.Hours += theme.Hours)"/>
+											</td>
+											<td class="w-100">
+												<textarea class="w-100 form-control" @bind=theme.Description></textarea>
+											</td>
+											<td>
+												<button class="btn btn-danger" @onclick="@(e => { 
+													sec.Hours -= theme.Hours;
+													sec.SectionThemes.Remove(theme);
+												})">Удалить</button></td>
 										</tr>
 									}
 								</tbody>
@@ -69,8 +82,8 @@
 		</div>
 	</div>
 
-	<div class="results" hidden="@(!isResultsDisplayed)">
-		<button class="btn btn-success ms-3" @onclick="NewResultRow">Новый результат</button>
+	<div class="results m-2" hidden="@(!isResultsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewResultRow">Новый результат</button>
 		<div class="m-2">
 			<table class="table table-striped">
 				<thead>
@@ -83,16 +96,16 @@
 				<tbody>
 					@foreach (var res in results)
 					{
-						<tr class="theme-row">
-							<td class="w-25 align-middle">
+						<tr class="result-row">
+							<td class="w-25">
 								<select @bind=res.Course class="form-select">
 									<option value="Личностный">Личностный</option>
 									<option value="Метапредметный">Метапредметный</option>
 									<option value="Предментный">Предметный</option>
 								</select>
 							</td>
-							<td class="align-middle"><textarea @bind=res.Result placeholder="Ожидаемый результат" class="w-100 form-control"></textarea></td>
-							<td class="text-nowrap align-middle" style="width:1%"><button class="btn btn-danger" @onclick="@(e => results.Remove(res))">Удалить</button></td>
+							<td class=""><textarea @bind=res.Result placeholder="Ожидаемый результат" class="w-100 form-control"></textarea></td>
+							<td class="text-nowrap" style="width:1%"><button class="btn btn-danger" @onclick="@(e => results.Remove(res))">Удалить</button></td>
 						</tr>
 					}
 				</tbody>
@@ -100,8 +113,8 @@
 		</div>
 	</div>
 
-	<div class="tools" hidden="@(!isToolsDisplayed)">
-		<button class="btn btn-success ms-3" @onclick="NewToolRow">Новый объект</button>
+	<div class="tools m-2" hidden="@(!isToolsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewToolRow">Новый объект</button>
 		<div class="m-2">
 			<table class="table table-striped">
 				<thead>
@@ -113,10 +126,47 @@
 				<tbody>
 					@foreach (var tool in tools)
 					{
-						<tr class="theme-row">
+						<tr class="tool-row">
 							<td class="align-middle"><input @bind=tool.Name placeholder="Объект" class="w-100 form-control"/></td>
 							<td class="text-nowrap align-middle" style="width:1%">
 								<button class="btn btn-danger" @onclick="@(e => tools.Remove(tool))">Удалить</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<div class="materials m-2" hidden="@(!isMaterialsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewMaterialRow">Новый учебно-методический материал</button>
+		<div class="m-2">
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">Вид материала</th>
+						<th scope="col">Описание</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var material in materials)
+					{
+						<tr class="material-row">
+							<td class="w-25">
+								<select @bind=material.Type class="form-select">
+									<option value="Учебник">Учебник</option>
+									<option value="Методический">Методический</option>
+									<option value="Дидактический">Дидактический</option>
+									<option value="Контрольный">Контрольный</option>
+									<option value="Интернет-ресурс">Интернет-ресурс</option>
+								</select>
+							</td>
+							<td class="align-middle w-100">
+								<input @bind=material.Description placeholder="Описание материала" class="w-100 form-control" />
+							</td>
+							<td class="text-nowrap align-middle" style="width:1%">
+								<button class="btn btn-danger" @onclick="@(e => materials.Remove(material))">Удалить</button>
 							</td>
 						</tr>
 					}
@@ -140,15 +190,16 @@
 	List<ProgramSection> sections = new List<ProgramSection>();
 	List<ProgramResult> results = new List<ProgramResult>();
 	List<ProgramTool> tools = new List<ProgramTool>();
+	List<ProgramEducationMaterial> materials = new List<ProgramEducationMaterial>();
 
 	List<bool> sectionsCollapseStates = new List<bool>();
-
 
 	protected override async Task OnInitializedAsync()
 	{
 		NewSectionBlock();
 		NewResultRow();
 		NewToolRow();
+		NewMaterialRow();
 	}
 
 	/* Методы разделов и их тем */
@@ -200,6 +251,12 @@
 	private void NewToolRow()
 	{
 		tools.Add(new ProgramTool());
+	}
+
+	/* Методы учебно-методических материалов */
+	private void NewMaterialRow()
+	{
+		materials.Add(new ProgramEducationMaterial() { Type = "Учебник" });
 	}
 
 	/* Методы отображения блоков рабочей программы */
