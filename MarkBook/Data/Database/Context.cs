@@ -5,10 +5,7 @@ namespace MarkBook.Data.Database
 {
     public class Context : DbContext
     {
-        public Context(DbContextOptions<Context> options)
-           : base(options)
-        {
-        }
+        public Context(DbContextOptions<Context> options) : base(options) { }
 
         public virtual DbSet<Grade> Grades { get; set; }
 		public virtual DbSet<EducationalWork> EducationalWorks { get; set; }
@@ -26,6 +23,13 @@ namespace MarkBook.Data.Database
         public virtual DbSet<StudentLesson> StudentLessons {  get; set; }
 		public virtual DbSet<StudyYear> StudyYears { get; set; }
 		public virtual DbSet<Calendar> Calendars { get; set; }
+        public virtual DbSet<Model.Program> Programs { get; set; }
+        public virtual DbSet<ProgramEducationMaterial> ProgramEducationMaterials { get; set; }
+        public virtual DbSet<ProgramResult> ProgramResults {  get; set; }
+        public virtual DbSet <ProgramTool> ProgramTools { get; set; }
+		public virtual DbSet<ProgramSection> ProgramSections { get; set; }
+		public virtual DbSet<SectionTheme> SectionThemes { get; set; }
+
 	}
 }
 
