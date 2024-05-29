@@ -19,10 +19,6 @@
 				<option value="@tsg.Id">@tsg.Grade.Name класс (@tsg.Subject.Name)</option>
 			}
 		</select>
-		@if (selectedTsg != null)
-		{
-			<span>@selectedTsg.Grade.Name @selectedTsg.Subject.Name</span>
-		}
 	</div>
 
 	<div class="navigation d-flex align-items-center justify-content-center">
@@ -195,13 +191,14 @@
 		
 	<!-- Разметка страницы всей информации о программе -->
 	<div class="program-view" hidden="@(!isProgramDisplayed)">
-		@if (program.TeacherSubjectGrade != null)
+		@if (selectedTsg != null)
 		{
-			<p>Рабочая программа "@program.Name" для @program.TeacherSubjectGrade.Grade.Name класса</p>
+			<p>Рабочая программа "@program.Name" для @selectedTsg.Grade.Name класса</p>
 			<p>Составитель: @GetCurrentTeacherName()</p>
-			<p>Результаты изучения учебного предмета</p>
-			<p>1) В личностном направлении: </p>
 		}
+		
+		<p>Результаты изучения учебного предмета</p>
+		<p>1) В личностном направлении: </p>
 		
 		@foreach (var result in results.Where(r => r.Course == "Личностный"))
 		{
@@ -217,13 +214,13 @@
 		{
 			<p>- @result.Result</p>
 		}
-		<p>Содержание обучения (всего @program.ProgramSections.Sum(ps => ps.Hours))</p>
+		<p>Содержание обучения (всего @sections.Sum(s => s.Hours) ч.)</p>
 		@foreach (var sec in sections)
 		{
 			<p>@sec.Name (@sec.Hours ч.)</p>
 			@foreach (var theme in sec.SectionThemes)
 			{
-				<p>@theme.Name (@theme.Hours)</p>
+				<p>@theme.Name (@theme.Hours ч.)</p>
 				<p>@theme.Description</p>
 			}
 		}
@@ -232,27 +229,27 @@
 		<p>Учебники:</p>
 		@foreach (var material in materials.Where(m => m.Type == "Учебник"))
 		{
-			<p>@material.Description</p>
+			<p>- @material.Description</p>
 		}
 		<p>Методические материалы:</p>
 		@foreach (var material in materials.Where(m => m.Type == "Методический"))
 		{
-			<p>@material.Description</p>
+			<p>- @material.Description</p>
 		}
 		<p>Дидактические материалы:</p>
 		@foreach (var material in materials.Where(m => m.Type == "Дидактический"))
 		{
-			<p>@material.Description</p>
+			<p>- @material.Description</p>
 		}
 		<p>Материалы для контроля:</p>
 		@foreach (var material in materials.Where(m => m.Type == "Контрольный"))
 		{
-			<p>@material.Description</p>
+			<p>- @material.Description</p>
 		}
 		<p>Интернет ресурсы:</p>
 		@foreach (var material in materials.Where(m => m.Type == "Интернет-ресурс"))
 		{
-			<p>@material.Description</p>
+			<p>- @material.Description</p>
 		}
 
 		<p>Материально-техническое обеспечение:</p>
@@ -266,7 +263,12 @@
 	</div>
 </div>
 
+
+
 @code {
+	// TODO Валидация данных формы (если строки в какой-либо из таблиц пусты - не давать открывать конечный файл)
+	// TODO Отформатировать конечный файл чтобы выглядел красиво сексуально
+
 	[Parameter]
 	public string n { get; set; }
 
@@ -281,7 +283,7 @@
 
 	List<TeacherSubjectGrade> currentTeacherTsgs = new List<TeacherSubjectGrade>();
 
-	Program program = new Program();
+	Program program = new Program() {Name = "Наименование"};
 
 	List<ProgramSection> sections = new List<ProgramSection>();
 	List<ProgramResult> results = new List<ProgramResult>();
@@ -297,7 +299,6 @@
 		NewResultRow();
 		NewToolRow();
 		NewMaterialRow();
-		program.TeacherSubjectGrade = selectedTsg;
 	}
 
 	/* Методы разделов и их тем */
@@ -399,7 +400,6 @@
 
 	private void ShowProgram()
 	{
-		ComposeProgram();
 		isProgramDisplayed = true;
 		isSectionsDisplayed = false;
 		isToolsDisplayed = false;
@@ -408,15 +408,6 @@
 	}
 
 	/* Методы работы с рабочей программой */
-
-	private void ComposeProgram()
-	{
-		program.TeacherSubjectGrade = selectedTsg;
-		program.ProgramSections = sections;
-		program.ProgramTools = tools;
-		program.ProgramEducationMaterials = materials;
-		program.ProgramResults = results;
-	}
 
 	private string GetCurrentTeacherName()
 	{
@@ -442,7 +433,6 @@
 				selectedTsg = tsg;
 			}
 		}
-		program.TeacherSubjectGrade = selectedTsg;
 	}
 
 	private async Task LoadCurrentTSGs()
