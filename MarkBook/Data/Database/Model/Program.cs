@@ -29,7 +29,7 @@ namespace MarkBook.Data.Database.Model
 
 		public virtual ICollection<ProgramTool> ProgramTools { get; set; }
 		public virtual ICollection<ProgramResult> ProgramResults { get; set; }
-		public virtual ICollection<ProgramEducationMaterial> ProgramEducationMaterials { get;}
+		public virtual ICollection<ProgramEducationMaterial> ProgramEducationMaterials { get; set; }
 		public virtual ICollection<ProgramSection> ProgramSections { get; set; }
 
 	}
