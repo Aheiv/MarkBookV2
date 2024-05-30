@@ -1,4 +1,4 @@
-﻿@page "/teacher{n}/programs"
+﻿@page "/teacher/{n}/programs/{IdProgram}"
 
 @using Microsoft.EntityFrameworkCore
 @using MarkBook.Data.Database.Model
@@ -272,6 +272,9 @@
 	[Parameter]
 	public string n { get; set; }
 
+	[Parameter]
+	public string IdProgram { get; set; }
+
 	public bool isSectionsDisplayed = true;
 	public bool isResultsDisplayed = false;
 	public bool isToolsDisplayed = false;
@@ -294,11 +297,19 @@
 
 	protected override async Task OnInitializedAsync()
 	{
-		await LoadCurrentTSGs();
-		NewSectionBlock();
-		NewResultRow();
-		NewToolRow();
-		NewMaterialRow();
+		if (IdProgram == "new")
+		{
+			await LoadCurrentTSGs();
+			NewSectionBlock();
+			NewResultRow();
+			NewToolRow();
+			NewMaterialRow();
+		} 
+		else 
+		{
+			await LoadCurrentTSGs();
+			await LoadProgramById();
+		}
 	}
 
 	/* Методы разделов и их тем */
@@ -450,6 +461,49 @@
 			selectedTsg = currentTeacherTsgs[0];
 		}
 	}
+
+	private async Task LoadProgramById()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			var programList = db.Programs
+				.Include(p => p.TeacherSubjectGrade)
+				.Include(p => p.ProgramResults)
+				.Include(p => p.ProgramEducationMaterials)
+				.Include(p => p.ProgramTools)
+				.Include(p => p.ProgramSections);
+
+			foreach (var p in programList)
+			{
+				if (p.Id == int.Parse(IdProgram))
+				{
+					this.program = p;
+					results = p.ProgramResults.ToList();
+					tools = p.ProgramTools.ToList();
+					sections = p.ProgramSections.ToList();
+					materials = p.ProgramEducationMaterials.ToList();
+					selectedTsgId = p.TeacherSubjectGradeId;
+				}
+			}
+		}
+
+		using (var db = DbFactory.CreateDbContext())
+		{
+			foreach (var section in sections)
+			{
+				section.SectionThemes = db.SectionThemes.Where(t => t.ProgramSection.Id == section.Id).ToList();
+				sectionsCollapseStates.Add(true);
+			}
+		}
+
+		foreach (var tsg in currentTeacherTsgs)
+		{
+			if (tsg.Id == selectedTsgId)
+			{
+				selectedTsg = tsg;
+			}
+		}
+	} 
 
 	private async Task SaveProgram()
 	{

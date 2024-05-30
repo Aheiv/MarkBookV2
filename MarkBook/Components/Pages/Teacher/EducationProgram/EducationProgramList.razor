@@ -1,0 +1,93 @@
+﻿@page "/teacher{n}/programs"
+
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@layout Components.Layout.LeaveLayout
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+
+<div>
+	<button class="btn btn-success" @onclick="@(e=> navigation.NavigateTo($"/teacher/{n}/programs/new"))">Новая рабочая программа</button>
+	<div class="programs">
+		@if (programs.Count > 0)
+		{
+
+		<table class="table table-striped">
+				<thead>
+					<tr>
+						<th>Название программы</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+				@foreach (var program in programs)
+				{
+					<tr>
+						<td>@program.Name</td>
+						<td><button class="btn btn-outline-primary" @onclick="@(e => navigation.NavigateTo($"/teacher/{n}/programs/{program.Id}"))">Просмотреть</button></td>
+							<td><button class="btn btn-danger">Удалить</button></td>
+					</tr>
+				}
+				</tbody>
+			</table>
+		}
+	</div>
+	
+	
+</div>
+
+@code {
+		
+	[Parameter]
+		
+	public string n { get; set; }
+
+	public List<Program> programs = new List<Program>();
+	public List<TeacherSubjectGrade> currentTeacherTsgs = new List<TeacherSubjectGrade>();
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadCurrentTSGs();
+		await LoadPrograms();
+	}
+
+	private async Task LoadCurrentTSGs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			currentTeacherTsgs = await db.TeacherSubjectGrades
+				.Include(x => x.Teacher)
+				.Include(x => x.Subject)
+				.Include(x => x.Grade)
+				.ToListAsync();
+			currentTeacherTsgs = currentTeacherTsgs
+				.Where(tsg => tsg.Teacher.id == int.Parse(n))
+				.ToList();
+		}
+	}
+
+	private async Task LoadPrograms()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			var programList = await db.Programs
+				.Include(p => p.TeacherSubjectGrade)
+				.Include(p => p.ProgramTools)
+				.Include(p => p.ProgramResults)
+				.Include(p => p.ProgramEducationMaterials)
+				.Include(p => p.ProgramSections).ToListAsync();
+
+			foreach (var tsg in currentTeacherTsgs)
+			{
+				foreach (var p in programList)
+				{
+					if (p.TeacherSubjectGrade.Id == tsg.Id)
+						programs.Add(p);
+				}
+			}
+		}
+	} 
+}
