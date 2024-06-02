@@ -1,0 +1,530 @@
+﻿@page "/teacher/{n}/programs/{IdProgram}"
+
+@using Microsoft.EntityFrameworkCore
+@using MarkBook.Data.Database.Model
+
+@inject NavigationManager navigation
+@layout Components.Layout.LeaveLayout
+@inject IDbContextFactory<Data.Database.Context> DbFactory
+@rendermode InteractiveServer
+
+
+<div class="content">
+	<div class="program-name w-100 d-flex justify-content-center">
+		<input @bind=program.Name placeholder="Название рабочей программы" class="w-25 mb-4 form-control me-2"/>
+
+		<select @bind=selectedTsgId @bind:after="BindTsgToProgram" class="form-control w-25 h-100">
+			@foreach (var tsg in currentTeacherTsgs)
+			{
+				<option value="@tsg.Id">@tsg.Grade.Name класс (@tsg.Subject.Name)</option>
+			}
+		</select>
+	</div>
+
+	<div class="navigation d-flex align-items-center justify-content-center">
+		<button class="btn btn-primary me-2" @onclick="ShowSections">Содержание обучения</button>
+		<button class="btn btn-primary me-2" @onclick="ShowResults">Результаты изучения</button>
+		<button class="btn btn-primary me-2" @onclick="ShowTools">Материально-техническое обеспечение</button>
+		<button class="btn btn-primary me-2" @onclick="ShowMaterials">Перечень учебно-методического обеспечения</button>
+		<button class="btn btn-success" @onclick="ShowProgram">Просмотреть рабочую программу</button>
+	</div>
+	
+	<!-- Разметка страницы разделов и их тем-->
+	<div class="sections m-2" hidden="@(!isSectionsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewSectionBlock">Новый раздел</button>
+		<div class="m-2">
+			@foreach (var sec in sections)
+			{
+				<div class="section flex-row border border-2 rounded-2 p-2 border-dark mb-2">
+					<div style="display: flex;" class="align-items-center">
+						<span class="text-nowrap">Название раздела</span>
+						<input placeholder="Название раздела" @bind=sec.Name class="form-control w-50 ms-2 me-2" />
+
+						<span class="text-nowrap">Общее количество часов<br/>(вычисляется автоматически)</span>
+						<input placeholder="Кол-во часов, общее" @bind=sec.Hours disabled class="form-control w-25 ms-2 me-2" />
+
+						<span style="display: flex; flex: 1 1 auto"></span>
+
+						<button class="btn btn-danger" @onclick="@(e => RemoveSection(sec))">Удалить</button>
+						<button class="btn btn-outline-secondary m-2 " @onclick="@(e => CollapseSingleSection(sec))">
+							@GetButtonCollapseName(sec)
+						</button>
+					</div>
+					
+					<div class="themes" hidden="@IsSingleSectionCollapsed(sec)">
+						<span>Темы раздела @sec.Name</span>
+						<div>
+							<table class="table table-striped">
+								<thead>
+									<tr>
+										<th scope="col">Название</th>
+										<th scope="col">Количество часов</th>
+										<th scope="col">Описание</th>
+										<th scope="col"></th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach (var theme in sec.SectionThemes)
+									{
+										<tr class="theme-row">
+											<td class="w-25">
+												<input class="w-100 form-control" @bind=theme.Name />
+											</td>
+											<td class="w-25">
+												<input class="w-100 form-control" @bind=theme.Hours @onblur="@(e => sec.Hours += theme.Hours)"/>
+											</td>
+											<td class="w-100">
+												<textarea class="w-100 form-control" @bind=theme.Description></textarea>
+											</td>
+											<td>
+												<button class="btn btn-danger" @onclick="@(e => { 
+													sec.Hours -= theme.Hours;
+													sec.SectionThemes.Remove(theme);
+												})">Удалить</button></td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+						<button class="btn btn-success" @onclick="@(e => NewThemeRow(sec))">Новая тема</button>
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+
+	<!-- Разметка страницы результатов изучения -->
+	<div class="results m-2" hidden="@(!isResultsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewResultRow">Новый результат</button>
+		<div class="m-2">
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">Тип результата</th>
+						<th scope="col">Ожидаемый результат</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var res in results)
+					{
+						<tr class="result-row">
+							<td class="w-25">
+								<select @bind=res.Course class="form-select">
+									<option value="Личностный">Личностный</option>
+									<option value="Метапредметный">Метапредметный</option>
+									<option value="Предметный">Предметный</option>
+								</select>
+							</td>
+							<td class=""><textarea @bind=res.Result placeholder="Ожидаемый результат" class="w-100 form-control"></textarea></td>
+							<td class="text-nowrap" style="width:1%"><button class="btn btn-danger" @onclick="@(e => results.Remove(res))">Удалить</button></td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- Разметка страницы материально-техихнического обеспечения программы -->
+	<div class="tools m-2" hidden="@(!isToolsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewToolRow">Новый объект</button>
+		<div class="m-2">
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">Объект материально-технического обеспечения</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var tool in tools)
+					{
+						<tr class="tool-row">
+							<td class="align-middle"><input @bind=tool.Name placeholder="Объект" class="w-100 form-control"/></td>
+							<td class="text-nowrap align-middle" style="width:1%">
+								<button class="btn btn-danger" @onclick="@(e => tools.Remove(tool))">Удалить</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- Разметка страницы учебно-методических материалов программы -->
+	<div class="materials m-2" hidden="@(!isMaterialsDisplayed)">
+		<button class="btn btn-success ms-2" @onclick="NewMaterialRow">Новый учебно-методический материал</button>
+		<div class="m-2">
+			<table class="table table-striped">
+				<thead>
+					<tr>
+						<th scope="col">Вид материала</th>
+						<th scope="col">Описание</th>
+						<th scope="col"></th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var material in materials)
+					{
+						<tr class="material-row">
+							<td class="w-25">
+								<select @bind=material.Type class="form-select">
+									<option value="Учебник">Учебник</option>
+									<option value="Методический">Методический</option>
+									<option value="Дидактический">Дидактический</option>
+									<option value="Контрольный">Контрольный</option>
+									<option value="Интернет-ресурс">Интернет-ресурс</option>
+								</select>
+							</td>
+							<td class="align-middle w-100">
+								<input @bind=material.Description placeholder="Описание материала" class="w-100 form-control" />
+							</td>
+							<td class="text-nowrap align-middle" style="width:1%">
+								<button class="btn btn-danger" @onclick="@(e => materials.Remove(material))">Удалить</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+		
+	<!-- Разметка страницы всей информации о программе -->
+	<div class="program-view" hidden="@(!isProgramDisplayed)">
+		@if (selectedTsg != null)
+		{
+			<p>Рабочая программа "@program.Name" для @selectedTsg.Grade.Name класса</p>
+			<p>Составитель: @GetCurrentTeacherName()</p>
+		}
+		
+		<p>Результаты изучения учебного предмета</p>
+		<p>1) В личностном направлении: </p>
+		
+		@foreach (var result in results.Where(r => r.Course == "Личностный"))
+		{
+			<p>- @result.Result</p>
+		}
+		<p>2) В метапредметном направлении: </p>
+		@foreach (var result in results.Where(r => r.Course == "Метапредметный"))
+		{
+			<p>- @result.Result</p>
+		}
+		<p>3) В предметном направлении: </p>
+		@foreach (var result in results.Where(r => r.Course == "Предметный"))
+		{
+			<p>- @result.Result</p>
+		}
+		<p>Содержание обучения (всего @sections.Sum(s => s.Hours) ч.)</p>
+		@foreach (var sec in sections)
+		{
+			<p>@sec.Name (@sec.Hours ч.)</p>
+			@foreach (var theme in sec.SectionThemes)
+			{
+				<p>@theme.Name (@theme.Hours ч.)</p>
+				<p>@theme.Description</p>
+			}
+		}
+
+		<p>Перечень учебно-методического обеспечения</p>
+		<p>Учебники:</p>
+		@foreach (var material in materials.Where(m => m.Type == "Учебник"))
+		{
+			<p>- @material.Description</p>
+		}
+		<p>Методические материалы:</p>
+		@foreach (var material in materials.Where(m => m.Type == "Методический"))
+		{
+			<p>- @material.Description</p>
+		}
+		<p>Дидактические материалы:</p>
+		@foreach (var material in materials.Where(m => m.Type == "Дидактический"))
+		{
+			<p>- @material.Description</p>
+		}
+		<p>Материалы для контроля:</p>
+		@foreach (var material in materials.Where(m => m.Type == "Контрольный"))
+		{
+			<p>- @material.Description</p>
+		}
+		<p>Интернет ресурсы:</p>
+		@foreach (var material in materials.Where(m => m.Type == "Интернет-ресурс"))
+		{
+			<p>- @material.Description</p>
+		}
+
+		<p>Материально-техническое обеспечение:</p>
+		@foreach (var tool in tools)
+		{
+			<p>- @tool.Name</p>
+		}
+		<div class="d-flex justify-content-center">
+			<button class="btn btn-success" @onclick="SaveProgram">Сохранить рабочую программу</button>
+		</div>
+	</div>
+</div>
+
+
+
+@code {
+	// TODO Валидация данных формы (если строки в какой-либо из таблиц пусты - не давать открывать конечный файл)
+	// TODO Отформатировать конечный файл чтобы выглядел красиво сексуально
+
+	[Parameter]
+	public string n { get; set; }
+
+	[Parameter]
+	public string IdProgram { get; set; }
+
+	public bool isSectionsDisplayed = true;
+	public bool isResultsDisplayed = false;
+	public bool isToolsDisplayed = false;
+	public bool isMaterialsDisplayed = false;
+	public bool isProgramDisplayed = false;
+
+	public int selectedTsgId;
+	public TeacherSubjectGrade selectedTsg = null;
+
+	List<TeacherSubjectGrade> currentTeacherTsgs = new List<TeacherSubjectGrade>();
+
+	Program program = new Program() {Name = "Наименование"};
+
+	List<ProgramSection> sections = new List<ProgramSection>();
+	List<ProgramResult> results = new List<ProgramResult>();
+	List<ProgramTool> tools = new List<ProgramTool>();
+	List<ProgramEducationMaterial> materials = new List<ProgramEducationMaterial>();
+
+	List<bool> sectionsCollapseStates = new List<bool>();
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (IdProgram == "new")
+		{
+			await LoadCurrentTSGs();
+			NewSectionBlock();
+			NewResultRow();
+			NewToolRow();
+			NewMaterialRow();
+		} 
+		else 
+		{
+			await LoadCurrentTSGs();
+			await LoadProgramById();
+		}
+	}
+
+	/* Методы разделов и их тем */
+
+	private void NewThemeRow(ProgramSection section)
+	{
+		section.SectionThemes.Add(new SectionTheme());
+	}
+
+	private void NewSectionBlock()
+	{
+		sections.Add(new ProgramSection());
+		NewThemeRow(sections[sections.Count - 1]);
+		sectionsCollapseStates.Add(true);
+	}
+
+	private void CollapseSingleSection(ProgramSection section)
+	{
+		int index = sections.IndexOf(section);
+		sectionsCollapseStates[index] = !sectionsCollapseStates[index];
+	}
+
+	private bool IsSingleSectionCollapsed(ProgramSection section)
+	{
+		int index = sections.IndexOf(section);
+		return sectionsCollapseStates[index];
+	}
+
+	private string GetButtonCollapseName(ProgramSection section)
+	{
+		return IsSingleSectionCollapsed(section) ? "▼" : "▲";
+	}
+
+	private void RemoveSection(ProgramSection section)
+	{
+		int index = sections.IndexOf(section);
+		sections.Remove(section);
+		sectionsCollapseStates.RemoveAt(index);
+	}
+
+	/* Методы результатов изучения */
+
+	private void NewResultRow()
+	{
+		results.Add(new ProgramResult() { Course = "Личностный" });
+	}
+
+	/* Методы объектов материально-технического обеспечения */
+
+	private void NewToolRow()
+	{
+		tools.Add(new ProgramTool());
+	}
+
+	/* Методы учебно-методических материалов */
+
+	private void NewMaterialRow()
+	{
+		materials.Add(new ProgramEducationMaterial() { Type = "Учебник" });
+	}
+
+	/* Методы отображения блоков рабочей программы */
+
+	private void ShowSections()
+	{
+		isSectionsDisplayed = true;
+		isToolsDisplayed = false;
+		isMaterialsDisplayed = false;
+		isResultsDisplayed = false;
+		isProgramDisplayed = false;
+	}
+
+	private void ShowTools()
+	{
+		isSectionsDisplayed = false;
+		isToolsDisplayed = true;
+		isMaterialsDisplayed = false;
+		isResultsDisplayed = false;
+		isProgramDisplayed = false;
+	}
+
+	private void ShowMaterials()
+	{
+		isSectionsDisplayed = false;
+		isToolsDisplayed = false;
+		isMaterialsDisplayed = true;
+		isResultsDisplayed = false;
+		isProgramDisplayed = false;
+	}
+
+	private void ShowResults()
+	{
+		isSectionsDisplayed = false;
+		isToolsDisplayed = false;
+		isMaterialsDisplayed = false;
+		isResultsDisplayed = true;
+		isProgramDisplayed = false;
+	}
+
+	private void ShowProgram()
+	{
+		isProgramDisplayed = true;
+		isSectionsDisplayed = false;
+		isToolsDisplayed = false;
+		isMaterialsDisplayed = false;
+		isResultsDisplayed = false ;
+	}
+
+	/* Методы работы с рабочей программой */
+
+	private string GetCurrentTeacherName()
+	{
+		string lastName = "";
+		string firstName = "";
+		string patronymic = "";
+		foreach (TeacherSubjectGrade tsg in currentTeacherTsgs.Where(x => x.Teacher.id == int.Parse(n)).DistinctBy(x => x.Teacher.last_name))
+		{
+			lastName = tsg.Teacher.last_name;
+			firstName = tsg.Teacher.first_name;
+			patronymic = tsg.Teacher.patronymic;
+
+		}
+		return $"{lastName} {firstName} {patronymic}";
+	}
+
+	private void BindTsgToProgram()
+	{
+		foreach (var tsg in currentTeacherTsgs)
+		{
+			if (tsg.Id == selectedTsgId)
+			{
+				selectedTsg = tsg;
+			}
+		}
+	}
+
+	private async Task LoadCurrentTSGs()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			currentTeacherTsgs = await db.TeacherSubjectGrades
+				.Include(x => x.Teacher)
+				.Include(x => x.Subject)
+				.Include(x => x.Grade)
+				.ToListAsync();
+			currentTeacherTsgs = currentTeacherTsgs
+				.Where(tsg => tsg.Teacher.id == int.Parse(n))
+				.ToList();
+			selectedTsg = currentTeacherTsgs[0];
+		}
+	}
+
+	private async Task LoadProgramById()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			var programList = db.Programs
+				.Include(p => p.TeacherSubjectGrade)
+				.Include(p => p.ProgramResults)
+				.Include(p => p.ProgramEducationMaterials)
+				.Include(p => p.ProgramTools)
+				.Include(p => p.ProgramSections);
+
+			foreach (var p in programList)
+			{
+				if (p.Id == int.Parse(IdProgram))
+				{
+					this.program = p;
+					results = p.ProgramResults.ToList();
+					tools = p.ProgramTools.ToList();
+					sections = p.ProgramSections.ToList();
+					materials = p.ProgramEducationMaterials.ToList();
+					selectedTsgId = p.TeacherSubjectGradeId;
+				}
+			}
+		}
+
+		using (var db = DbFactory.CreateDbContext())
+		{
+			foreach (var section in sections)
+			{
+				section.SectionThemes = db.SectionThemes.Where(t => t.ProgramSection.Id == section.Id).ToList();
+				sectionsCollapseStates.Add(true);
+			}
+		}
+
+		foreach (var tsg in currentTeacherTsgs)
+		{
+			if (tsg.Id == selectedTsgId)
+			{
+				selectedTsg = tsg;
+			}
+		}
+	} 
+
+	private async Task SaveProgram()
+	{
+		using (var db = DbFactory.CreateDbContext())
+		{
+			var programToSave = new Program() { TeacherSubjectGradeId = selectedTsg.Id, Name = program.Name };
+			db.Programs.Add(programToSave);
+			foreach (var res in results) { res.Program = programToSave; db.ProgramResults.Add(res); }
+			foreach (var tool in tools) { tool.Program = programToSave; db.ProgramTools.Add(tool); }
+			foreach (var material in materials) { material.Program = programToSave; db.ProgramEducationMaterials.Add(material); }
+			foreach (var section in sections) { 
+				section.Program = programToSave; 
+				db.ProgramSections.Add(section); 
+				foreach (var theme in section.SectionThemes)
+				{
+					theme.ProgramSection = section;
+					db.SectionThemes.Add(theme);
+				}
+			}			
+			
+			await db.SaveChangesAsync();
+		}
+	}
+}

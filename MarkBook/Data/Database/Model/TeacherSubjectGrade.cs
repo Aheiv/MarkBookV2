@@ -12,6 +12,7 @@ namespace MarkBook.Data.Database.Model
 			StudentLessons = new HashSet<StudentLesson>();
 			Schedules = new HashSet<Schedule>();
 			Calendars = new HashSet<Calendar>();
+			Programs = new HashSet<Program>();
 		}
 		[Key]
         [Column("id")]
@@ -35,5 +36,6 @@ namespace MarkBook.Data.Database.Model
 		public virtual ICollection<Schedule> Schedules { get; set; }
 
 		public virtual ICollection<StudentLesson> StudentLessons { get; set; }
+		public virtual ICollection<Program> Programs { get; set; }
 	}
 }

@@ -33,6 +33,7 @@
 							<button type="button" class="btn btn-primary" @onclick="RedirectToCalendar">Календарно-тематический план</button>
 							<button type="button" class="btn btn-primary" @onclick="RedirectToVosp">План воспитательной работы</button>
 							<button type="button" class="btn btn-primary" @onclick="RedirectToExtras">План внеурочной деятельности</button>
+							<button type="button" class="btn btn-primary" @onclick="RedirectToEducationPrograms">Рабочие программы</button>
 						</div>
 					</div>
 				</div>
@@ -78,5 +79,10 @@
 	private void RedirectToExtras()
 	{
 		navigation.NavigateTo($"/teacher{n}/extras");
+	}
+
+	private void RedirectToEducationPrograms()
+	{
+		navigation.NavigateTo($"/teacher{n}/programs");
 	}
 }
